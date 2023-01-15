@@ -71,7 +71,7 @@ make_structure_table <- function(df, df_nan = NULL) {
 
 # Plots -------------------------------------------------------------------
 
-make_pct_countplot <- function(df = dat_cat, var_name, color = "blue"){
+make_pct_countplot <- function(df = dat_cat, var_name, color = "lightblue"){
   "Description. Return % countplot for a categorical variable."
   
   d <- dat_cat %>% 
@@ -123,6 +123,54 @@ make_histogram <- function(df = dat_quanti, var_name, density = T, thresold = NU
   
   ggplotly(p)
   
+}
+
+make_scatter_plot <- function(df, x_var, y_var, color = "orange"){
+  "Description. Make plotly scatterplot and compute Pearson correlation coef."
+  
+  corr <- cor(x = df %>% pull(x_var), 
+              y = df %>% pull(y_var))
+  
+  title <- paste("Corr =", round(corr, 2), "| n =", format(nrow(df), scientific = F, big.mark = " "))
+  
+  p <- df %>% 
+    ggplot(mapping = aes_string(x = x_var, y = y_var)) +
+    geom_point(color = color, size = .6) +
+    geom_smooth() +
+    ggtitle(label = title)
+  
+  ggplotly(p)
+  
+}
+
+histogram_per_category <- function(df, cat_var, target) {
+  "Description. Draw quantitative variable distribution per category."
+  
+  wrapper <- as.formula(paste("~", cat_var))
+  
+  p <- df_subset %>% 
+    ggplot(mapping = aes_string(x = target, y = "..density..", color = cat_var)) +
+    geom_histogram(bins = 30, fill = "white") +
+    facet_wrap(wrapper, scales = "free_y") +
+    ggtitle(label = paste(target, "vs", cat_var))
+  
+  ggplotly(p) %>% layout(showlegend = FALSE)
+  
+}
+
+
+# Data handling  ------------------------------------------------------------------
+
+draw_samples <- function(df, n_samples = 10000){
+  "Description. Draw n_subset non-NANs data points."
+  
+  df_no_nans <- df %>% na.omit()
+  n_samples <- min(n_samples, nrow(df_no_nans))
+  
+  ids <- sample(x = rownames(df_no_nans), size = n_samples, replace = F)
+  df_subset <- df_no_nans %>% filter(rownames(.) %in% ids)
+  
+  return(df_subset)
 }
 
 # Statistics  ------------------------------------------------------------------
