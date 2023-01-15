@@ -1,15 +1,16 @@
 ---
-title: "Exploration données valeurs foncières"
+title: " Data Exploration : Demandes de valeurs foncières"
 author: "Pierre-Emmanuel Diot"
 date: "2023-01-09"
 output: 
-  html_document: 
+  bookdown::html_document2: 
     toc: true
     toc_float: true
+    number_sections: false
 editor_options: 
   chunk_output_type: console
 params: 
-  file_name: datadvf2022.csv
+  file_name: datadvf2022
 ---
 
 <style type="text/css">
@@ -29,7 +30,7 @@ knitr::opts_chunk$set(echo = FALSE,
                       fig.height = 3.5, 
                       fig.width = 4)
 
-# setwd("C:/Users/pemma/OneDrive - GENES/Ensae/Business Data Challenge/Code/Exploration"
+#setwd("C:/Users/pemma/OneDrive - GENES/Ensae/Business Data Challenge/business-data-challenge/code/exploration")
 ```
 
 ```{r packages}
@@ -54,7 +55,8 @@ theme_set(theme_minimal())
 
 ```{r dir}
 DIR <- getwd()
-DATA_DIR <- "../../Data/DVF/"
+DATA_DIR <- "../../data/DVF/"
+BACKUP_DIR <- "../../backup/"
 ```
 
 ```{r functions}
@@ -65,7 +67,7 @@ source("functions.R", encoding = "UTF-8")
 
 ```{r cache=TRUE, include=FALSE}
 system.time(
-  dat <- fread(input = paste0(DATA_DIR, params$file_name), 
+  dat <- fread(input = paste0(DATA_DIR, params$file_name, ".csv"), 
                encoding = "UTF-8" 
                # ,na.strings = c("", NA)
                )
@@ -81,6 +83,8 @@ dat %>%
 
 ### Visualisation géographique
 
+<center>
+
 ```{r}
 samp <- dat %>%
   filter(rownames(.) %in% sample(x = 1:nrow(dat), size = 2000)) 
@@ -94,13 +98,22 @@ leaflet() %>%
        radius = 0)
 ```
 
+<center/>
+
 ### Données manquantes
 
 ```{r missing}
-missing <- dat %>% 
-  freq.na() %>% 
-  as.data.frame() 
+# missing <- dat %>% 
+#  freq.na() %>% 
+#  as.data.frame() 
 
+file_name <- paste0(BACKUP_DIR, "exploration/missing_", params$file_name, ".RData")
+# save(missing, file = file_name)
+
+load(file = file_name)
+```
+
+```{r}
 vars_with_nans <- missing %>% 
   dplyr::filter(missing > 0) %>% rownames()
 
@@ -171,7 +184,15 @@ dat_cat <- dat %>%
   mutate(nombre_pieces_principales = dat %>% pull(nombre_pieces_principales)) %>% 
   unclass() %>% 
   as.data.frame(stringsAsFactors = T)  
+
+col_cat <- colnames(dat_cat)
 ```
+
+```{r}
+dat <- dat %>% 
+  mutate(across(all_of(col_cat), as.factor)) 
+```
+
 
 ```{r}
 make_structure_table(dat_cat, missing) %>% datatable()
@@ -194,6 +215,7 @@ for (i in 1:n_vars){
 }
 ```
 
+
 :::: {style="display: flex;"}
 
 ::: {}
@@ -210,6 +232,48 @@ plot_list$type_local
 :::
 
 ::::
+
+```{r}
+tab <- table(dat$type_local, dat$code_type_local) %>% 
+  prop.table() 
+colnames(tab) <- paste("code", colnames(tab), sep = "=")
+
+tab %>% 
+  mykable(title = "Tableau de proportions entre code_type_local et type_local", 
+          digits = 3)
+```
+
+```{r}
+dat <- dat %>% 
+  mutate(type_local2 = if_else(
+    
+    code_type_local == 1, 
+    
+    "Maison", 
+    
+    if_else(code_type_local == 2, 
+            
+            "Appartement", 
+            
+            if_else(code_type_local == 3, 
+                    
+                    "Dépendance", 
+                    "Local industriel. commercial ou assimilé"))
+  ))
+
+dat_cat <- dat_cat %>%
+  mutate(type_local2 = dat$type_local2)
+
+col_cat <- colnames(dat_cat)
+```
+
+<center>
+
+```{r}
+make_pct_countplot(var_name = "type_local2")
+```
+
+<center/>
 
 
 :::: {style="display: flex;"}
@@ -228,6 +292,11 @@ plot_list$nature_culture
 :::
 
 ::::
+
+```{r eval=FALSE}
+table(dat$nature_culture, dat$code_nature_culture) %>% View()
+```
+
 
 <center>
 
@@ -387,7 +456,7 @@ où $\tilde{X}$ est la médiane de la série $X$ et $\text{MAD}$ l'écart absolu
 ```{r}
 outliers <- sapply(
   X = col_quanti, 
-  FUN = function(var_name) dat %>% pull(var_name) %>% hampel_filter
+  FUN = function(var_name) dat %>% pull(var_name) %>% hampel_filter()
 )
 
 n <- nrow(dat) 
@@ -405,8 +474,173 @@ outliers_freqs %>%
   arrange(desc(`%`)) %>% 
   mutate_if(is.numeric, funs(format(100 * ., big.mark = " ", scientific = F, digits = 2))) %>% 
   mykable(title = "Proportion d'outliers par variable")
+```
+
+```{r}
+to_remove <- outliers %>% 
+  unlist() %>% 
+  unique() %>% 
+  as.character()
+
+dat_no_outliers <- dat %>% filter(!(rownames(.) %in% to_remove)) 
+
+n <- dat %>% nrow() %>% format(big.mark = " ", scientific = F)
+n_bis <- dat_no_outliers %>% nrow() %>% format(big.mark = " ", scientific = F)
+```
+
+- `r n` observations dans la base de données initiale
+- `r n_bis` observations après suppressions des outliers
+
+### Analyses croisées
+
+```{r}
+n_samples <- format(10000, big.mark = " ", scientific = F)
+```
+
+Afin de pouvoir construire des visualisations assez rapidement, on décide de travailler sur un sous-échantillon de la base de données de taille `r n_samples`. 
+
+
+#### Variables quantitatives & `valeur_fonciere`
+
+```{r cache=TRUE}
+vars <- setdiff(col_quanti, "valeur_fonciere")
+n_vars <- length(vars)
+colors <- brewer.pal(n_vars, "Set3")
+target <- "valeur_fonciere"
+
+plot_list <- list()
+for (i in 1:n_vars) {
+  
+  x_var <- vars[i]
+  c <- colors[i]
+  
+  df_subset <- dat_no_outliers %>%
+      dplyr::select(c(all_of(x_var), all_of(target))) %>% 
+    draw_samples()
+  
+  plot_list[[x_var]] <- make_scatter_plot(df = df_subset, 
+                                          x_var = x_var, 
+                                          y_var = target, 
+                                          color = c)
+
+}
 
 ```
 
+:::: {style="display: flex;"}
+
+::: {}
+```{r }
+plot_list$surface_reelle_bati
+```
+:::
+
+::: {}
+
+```{r }
+plot_list$surface_terrain
+```
+:::
+
+::::
+
+:::: {style="display: flex;"}
+
+::: {}
+```{r }
+plot_list$lot1_surface_carrez
+```
+:::
+
+::: {}
+
+```{r }
+plot_list$lot2_surface_carrez
+```
+:::
+
+::::
+
+:::: {style="display: flex;"}
+
+::: {}
+```{r }
+plot_list$lot3_surface_carrez
+```
+:::
+
+::: {}
+
+```{r }
+plot_list$lot4_surface_carrez
+```
+:::
+
+::: {}
+
+```{r }
+plot_list$lot5_surface_carrez
+```
+:::
+
+::::
+
+#### Variables catégorielles & `valeur_fonciere`
+
+```{r}
+cat_vars <- setdiff(x = col_cat, 
+                    y = c("type_local", 
+                          "code_nature_culture", 
+                          "code_nature_culture_speciale"))
+
+target <- "valeur_fonciere"
+
+plot_list <- list()
+for (mask in cat_vars) {
+  
+  df_subset <- dat_no_outliers %>%
+      dplyr::select(c(all_of(mask), all_of(target))) %>% 
+    draw_samples()
+  
+  n_levels <- df_subset %>% 
+    pull(mask) %>% 
+    unique() %>% 
+    length()
+  
+  if (n_levels <= 10) {
+    
+    plot_list[[mask]] <- histogram_per_category(df = df_subset,
+                                                cat_var = mask, 
+                                                target = target) 
+    
+  }
+  
+}
+  
+```
+
+<center>
+
+```{r fig.width=5}
+plot_list$nature_mutation
+```
+
+<center/>
+
+<center>
+
+```{r fig.width=5}
+plot_list$type_local2
+```
+
+<center/>
+
+<center>
+
+```{r fig.width=5}
+plot_list$nombre_pieces_principales
+```
+
+<center/>
 
 ## Modélisation 
