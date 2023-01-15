@@ -85,7 +85,7 @@ dat %>%
 
 <center>
 
-```{r}
+```{r include=F}
 samp <- dat %>%
   filter(rownames(.) %in% sample(x = 1:nrow(dat), size = 2000)) 
 
@@ -476,17 +476,21 @@ outliers_freqs %>%
   mykable(title = "Proportion d'outliers par variable")
 ```
 
-```{r}
+```{r cache=T}
 to_remove <- outliers %>% 
   unlist() %>% 
   unique() %>% 
   as.character()
 
-dat_no_outliers <- dat %>% filter(!(rownames(.) %in% to_remove)) 
+dat_no_outliers <- dat %>% 
+  filter(!(rownames(.) %in% to_remove)) %>%
+  filter(as.numeric(nombre_pieces_principales) <= 12) 
 
 n <- dat %>% nrow() %>% format(big.mark = " ", scientific = F)
 n_bis <- dat_no_outliers %>% nrow() %>% format(big.mark = " ", scientific = F)
 ```
+
+On décide de supprimer les valeurs aberrantes ainsi que les biens dont le nombre de pièces principales est supérieur à 12 : 
 
 - `r n` observations dans la base de données initiale
 - `r n_bis` observations après suppressions des outliers
@@ -502,7 +506,7 @@ Afin de pouvoir construire des visualisations assez rapidement, on décide de tr
 
 #### Variables quantitatives & `valeur_fonciere`
 
-```{r cache=TRUE}
+```{r}
 vars <- setdiff(col_quanti, "valeur_fonciere")
 n_vars <- length(vars)
 colors <- brewer.pal(n_vars, "Set3")
@@ -576,14 +580,15 @@ plot_list$lot4_surface_carrez
 ```
 :::
 
-::: {}
+::::
+
+<center>
 
 ```{r }
 plot_list$lot5_surface_carrez
 ```
-:::
 
-::::
+<center/>
 
 #### Variables catégorielles & `valeur_fonciere`
 
@@ -607,7 +612,7 @@ for (mask in cat_vars) {
     unique() %>% 
     length()
   
-  if (n_levels <= 10) {
+  if (n_levels <= 15) {
     
     plot_list[[mask]] <- histogram_per_category(df = df_subset,
                                                 cat_var = mask, 
@@ -621,26 +626,26 @@ for (mask in cat_vars) {
 
 <center>
 
-```{r fig.width=5}
+```{r fig.width=7, fig.height=5}
 plot_list$nature_mutation
 ```
 
 <center/>
 
+
 <center>
 
-```{r fig.width=5}
+```{r fig.width=7, fig.height=5}
 plot_list$type_local2
 ```
 
 <center/>
 
+
 <center>
 
-```{r fig.width=5}
+```{r fig.width=7, fig.height=5}
 plot_list$nombre_pieces_principales
 ```
 
 <center/>
-
-## Modélisation 
