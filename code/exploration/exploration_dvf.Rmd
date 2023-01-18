@@ -85,7 +85,7 @@ dat %>%
 
 <center>
 
-```{r include=F}
+```{r}
 samp <- dat %>%
   filter(rownames(.) %in% sample(x = 1:nrow(dat), size = 2000)) 
 

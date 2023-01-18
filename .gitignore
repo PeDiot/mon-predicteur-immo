@@ -1,4 +1,5 @@
 data/dvf/datadvf2022.csv
 **/code/exploration/exploration_dvf_cache
+*.html
 *.RData
 *.Rhistory
