@@ -63,7 +63,7 @@ make_structure_table <- function(df, df_nan = NULL) {
   colnames(tab)[3] <- "First values"
   
   df_nan <- df_nan %>% rownames_to_column(var = "Variable")
-  tab <- inner_join(x = tab, y = df_nan, by = "Variable")
+  tab <- left_join(x = tab, y = df_nan, by = "Variable")
   
   return(tab)
   
@@ -71,7 +71,7 @@ make_structure_table <- function(df, df_nan = NULL) {
 
 # Plots -------------------------------------------------------------------
 
-make_pct_countplot <- function(df = dat_cat, var_name, color = "lightblue"){
+make_pct_countplot <- function(df, var_name, color = "lightblue"){
   "Description. Return % countplot for a categorical variable."
   
   d <- dat_cat %>% 
@@ -98,13 +98,12 @@ make_pct_countplot <- function(df = dat_cat, var_name, color = "lightblue"){
   
 }
 
-make_histogram <- function(df = dat_quanti, var_name, density = T, thresold = NULL, color = "blue"){
+make_histogram <- function(
+    df, 
+    var_name, 
+    density = T, 
+    color = "lightblue"){
   "Description. Return histogram plot with optional kernel density line."
-  
-  if (!is.null(thresold)) {
-    df <- df %>%
-      filter(!!sym(var_name) <= thresold)
-  }
   
   p <- df %>% 
     ggplot(mapping = aes(x = !!sym(var_name), y = ..density..)) + 
@@ -120,6 +119,11 @@ make_histogram <- function(df = dat_quanti, var_name, density = T, thresold = NU
   
   p <- p +
     labs(x = "", title = var_name) 
+  
+  if (var_name == "valeur_fonciere") {
+    p <- p + 
+      scale_x_continuous(labels = unit_format(unit = "K", scale = 1e-3)) 
+  }
   
   ggplotly(p)
   
@@ -139,22 +143,102 @@ make_scatter_plot <- function(df, x_var, y_var, color = "orange"){
     geom_smooth() +
     ggtitle(label = title)
   
+  if (y_var == "valeur_fonciere") {
+    p <- p + 
+      scale_y_continuous(labels = unit_format(unit = "K", scale = 1e-3)) 
+  }
+  
   ggplotly(p)
   
 }
 
-histogram_per_category <- function(df, cat_var, target) {
+distribution_per_category <- function(df, by, target,  multiple = F) {
   "Description. Draw quantitative variable distribution per category."
   
-  wrapper <- as.formula(paste("~", cat_var))
+  if (multiple == F) {
+    show_legend <- T
+    
+    p <- df %>% 
+      ggplot(mapping = aes_string(x = target, 
+                                  y = "..density..", 
+                                  color = by, 
+                                  fill = by)) +
+      geom_histogram(bins = 30, alpha = .4) +
+      xlab("")
+  }
   
-  p <- df_subset %>% 
-    ggplot(mapping = aes_string(x = target, y = "..density..", color = cat_var)) +
-    geom_histogram(bins = 30, fill = "white") +
-    facet_wrap(wrapper, scales = "free_y") +
-    ggtitle(label = paste(target, "vs", cat_var))
+  else {
+    show_legend <- FALSE 
+    wrapper <- as.formula(paste("~", by)) 
+    
+    p <- df %>% 
+      ggplot(mapping = aes_string(x = target, y = "..density..", color = by)) +
+      geom_histogram(bins = 30, fill = "white") +
+      facet_wrap(wrapper)
+    
+  }
   
-  ggplotly(p) %>% layout(showlegend = FALSE)
+  if (target == "valeur_fonciere") {
+    p <- p + 
+      scale_x_continuous(labels = unit_format(unit = "K", scale = 1e-3)) 
+  }
+  
+  p <- p + ggtitle(label = paste(target, "vs", by))
+  
+  if (show_legend) {
+    p <-  ggplotly(p) %>% 
+      layout(legend = list(orientation = "h", title = ""))
+  }
+  
+  else {
+    p <- ggplotly(p) %>% layout(showlegend = F) 
+  }
+  
+  return(p)
+  
+}
+
+boxplot_per_category <- function(df, target, by) {
+  "Description. Boxplot of target variable depending on category."
+  
+  p <- df %>%
+    ggplot(mapping = aes(x = reorder(!!sym(by), -!!sym(target)), 
+                         y = !!sym(target), 
+                         color = reorder(!!sym(by), -!!sym(target)), 
+                         fill = reorder(!!sym(by), -!!sym(target))))  +
+    geom_boxplot(alpha = .3) 
+  
+  if (target == "valeur_fonciere") {
+    p <- p +
+      scale_y_continuous(labels = unit_format(unit = "K", scale = 1e-3)) 
+  }
+    
+  p <- p +
+    labs(title = paste(target, "selon", by), 
+         x = "", 
+         y = "") +
+    theme(axis.text.x = element_text(angle = -90))
+  
+  ggplotly(p) %>% layout(showlegend = F)
+  
+}
+
+barplot_per_category <- function(df, cat_var1, cat_var2) {
+  "Description. Categorical variable countplot per category of other categorical variable."
+  
+  p <- df %>%
+    ggplot() +
+    geom_bar(
+      mapping = aes_string(
+        x = cat_var1, 
+        color = cat_var2, 
+        fill = cat_var2), 
+      alpha = .5) +
+    labs(x = "", title = cat_var1) +
+    theme(axis.text.x = element_text(angle = -90))
+  
+  ggplotly(p) %>%
+    layout(legend = list(orientation = "h", y = -.5))
   
 }
 
@@ -178,7 +262,8 @@ draw_samples <- function(df, n_samples = 10000){
 stat_table <- function(x, var_name = "") {
   "Description. Return summary statistics for quantitative variable"
   
-  na_freq <- 100 * sum(is.na(x)) / length(x)
+  na_freq <- sum(is.na(x)) / length(x)
+  n_available <- length(x) * (1 - na_freq)
   
   mean_x <- mean(x, na.rm = T)
   std_x <- sd(x, na.rm = T)
@@ -190,7 +275,8 @@ stat_table <- function(x, var_name = "") {
                            q2 = quants[3], 
                            q3 = quants[4], 
                            Max = quants[5], 
-                           nans = na_freq)
+                           nans = 100 * na_freq, 
+                           N = n_available)
   
   colnames(stat_table)[c(2, 4:6, 8)] <- c("Ecart-type", "Q25%", "Q50%", "Q75%", "% NA")
   rownames(stat_table) <- var_name

@@ -1,7 +1,7 @@
 ---
 title: " Data Exploration : Demandes de valeurs foncières"
 author: "Pierre-Emmanuel Diot"
-date: "2023-01-09"
+date: "Last updated: `r Sys.time()`"
 output: 
   bookdown::html_document2: 
     toc: true
@@ -10,7 +10,7 @@ output:
 editor_options: 
   chunk_output_type: console
 params: 
-  file_name: datadvf2022
+  year: 2021
 ---
 
 <style type="text/css">
@@ -20,8 +20,7 @@ params:
 .twoC img {max-width: 50%; float: left}
 </style>
 
-
-```{r setup, include=FALSE}
+```{r include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, 
                       message = FALSE, 
                       comment = FALSE, 
@@ -30,8 +29,23 @@ knitr::opts_chunk$set(echo = FALSE,
                       fig.height = 3.5, 
                       fig.width = 4)
 
-#setwd("C:/Users/pemma/OneDrive - GENES/Ensae/Business Data Challenge/business-data-challenge/code/exploration")
 ```
+
+```{r eval=FALSE}
+root <- "C:/Users/pemma/OneDrive - GENES/Ensae/Business Data Challenge/business-data-challenge/code/exploration"
+setwd(root)
+```
+
+```{r dir}
+DIR <- getwd()
+
+DATA_DIR <- "../../data/"
+BACKUP_DIR <- "../../backup/"
+
+ZIP_DIR <- paste0(DATA_DIR, "dvf.zip") 
+ZIP_CODE_DIR <- paste0(DATA_DIR, "french-zip-code/")
+```
+
 
 ```{r packages}
 library(rmarkdown)
@@ -43,51 +57,141 @@ library(DT)
 library(naniar)
 library(questionr)
 
+library(stargazer)
+
 library(kableExtra)
 
 library(shiny)
 library(plotly)
 library(leaflet)
 library(RColorBrewer)
-
-theme_set(theme_minimal())
+library(scales)
 ```
 
-```{r dir}
-DIR <- getwd()
-DATA_DIR <- "../../data/DVF/"
-BACKUP_DIR <- "../../backup/"
+```{r}
+theme_set(theme_minimal(base_size = 9))
 ```
+
 
 ```{r functions}
 source("functions.R", encoding = "UTF-8")
 ```
 
+```{r eval=FALSE}
+files <- unzip(ZIP_DIR, list = T) %>% 
+  mutate(Year = Name %>% parse_number())
+```
+
+
 ## Data
 
-```{r cache=TRUE, include=FALSE}
-system.time(
-  dat <- fread(input = paste0(DATA_DIR, params$file_name, ".csv"), 
-               encoding = "UTF-8" 
-               # ,na.strings = c("", NA)
-               )
-)
+L'étude porte sur les demandes de valeurs foncières pour l'année `r params$year`. 
+
+```{r eval=FALSE}
+file_name <- paste0("dvf/", params$year, ".csv")
+file_path <- unzip(ZIP_DIR, file_name)
+
+dat <- read_csv(file_path)
+```
+
+
+### Filtre 
+
+L'objectif est de construire un prédicteur du prix de vente des maisons & appartements. Nous décidons d'appliquer un filtre sur la base de données consistant à sélectionner les observations telles que :
+
+- `nature_mutation` = "Vente", 
+- `type_local` = "Maison" ou `type_local` = "Appartement".
+
+Avant d'appliquer le filtre, nous pouvons recoder la variable `type_local` de telle sorte à obtenir 4 catégories identifiées à partir de la variable `code_type_local`.
+
+```{r }
+# tab <- table(dat$type_local, dat$code_type_local) %>% 
+#   prop.table() 
+# colnames(tab) <- paste("code", colnames(tab), sep = "=")
+
+file_path <- paste0(BACKUP_DIR, "exploration/tab_type_local.RData")
+# save(tab, file = file_path)
+
+load(file_path)
+
+tab %>% 
+  mykable(title = "Tableau de proportions entre code_type_local et type_local", 
+          digits = 3)
+```
+
+```{r eval=FALSE}
+dat <- dat %>% 
+  
+  mutate(type_local = if_else(
+    
+    code_type_local == 1, 
+    
+    "Maison", 
+    
+    if_else(code_type_local == 2, 
+            
+            "Appartement", 
+            
+            if_else(code_type_local == 3, 
+                    
+                    "Dépendance", 
+                    "Local industriel. commercial ou assimilé"))
+  ))
 ```
 
 ```{r}
-dat %>% 
-  head(n = 10) %>% 
-  mykable(title = "Aperçu de la base de données") %>% 
+# dat2 <- dat %>%
+#   filter(nature_mutation == "Vente") %>%
+#   filter(type_local %in% c("Appartement", "Maison")) 
+
+file_path <- paste0(DATA_DIR, "dvf_rdata/df_filtered_", params$year, ".RData")
+# save(dat2, file = file_path)
+
+load(file_path)
+```
+
+```{r}
+n2 <- dat2 %>% nrow() %>% format(big.mark = " ", scientific = F)
+```
+
+Après l'application du filtre, on obtient un jeu de données à `r n2` transactions.
+
+```{r}
+random_idxs <- rdunif(n = 10, b = nrow(dat2)) %>% as.character()
+
+dat2 %>% 
+  filter(rownames(.) %in% random_idxs) %>% 
+  mykable(title = "Aperçu de la base de données après application du filtre") %>% 
   scroll_box(width = "100%", box_css = "border: 0px;")
 ```
+
+### Ajout des régions
+
+```{r regions}
+dpts <- read_csv(paste0(ZIP_CODE_DIR, "departments.csv")) %>% 
+  rename(code_departement = code, 
+         nom_departement = name, 
+         code_region = region_code) %>% 
+  select(-c(id, slug))
+
+regions <- read_csv(paste0(ZIP_CODE_DIR, "regions.csv")) %>%
+  rename(code_region = code, 
+         nom_region = name) %>% 
+  select(-c(id, slug)) 
+
+regions_dpts <- inner_join(x = dpts, y = regions, by = "code_region")
+
+dat2 <- inner_join(dat2, regions_dpts, by = "code_departement")
+```
+
 
 ### Visualisation géographique
 
 <center>
 
 ```{r}
-samp <- dat %>%
-  filter(rownames(.) %in% sample(x = 1:nrow(dat), size = 2000)) 
+samp <- dat2 %>%
+  filter(rownames(.) %in% sample(x = 1:nrow(dat2), size = 2000)) 
 
 leaflet() %>% 
      addTiles() %>% 
@@ -100,14 +204,13 @@ leaflet() %>%
 
 <center/>
 
+
 ### Données manquantes
 
 ```{r missing}
-# missing <- dat %>% 
-#  freq.na() %>% 
-#  as.data.frame() 
+# missing <- dat2 %>% freq.na() %>% as.data.frame() 
 
-file_name <- paste0(BACKUP_DIR, "exploration/missing_", params$file_name, ".RData")
+file_name <- paste0(BACKUP_DIR, "exploration/missing_dvf_", params$year, ".RData")
 # save(missing, file = file_name)
 
 load(file = file_name)
@@ -115,9 +218,10 @@ load(file = file_name)
 
 ```{r}
 vars_with_nans <- missing %>% 
-  dplyr::filter(missing > 0) %>% rownames()
+  dplyr::filter(missing > 0) %>% 
+  rownames()
 
-p <- dat %>%
+p <- dat2 %>%
   select(all_of(vars_with_nans)) %>% 
   gg_miss_var(show_pct = T) +
   labs(x = "") 
@@ -127,7 +231,7 @@ p <- dat %>%
 :::: {style="display: flex;"}
 
 ::: {}
-```{r }
+```{r missingtab}
 missing %>% 
   dplyr::filter(missing > 0) %>%
   datatable()
@@ -143,7 +247,34 @@ p %>% ggplotly()
 
 ::::
 
-### Variables identifiantes
+### Description des variables 
+
+<center>
+
+![](../../imgs/dvf_vars1.png)
+
+</center>
+
+<center>
+
+![](../../imgs/dvf_vars2.png)
+</center>
+
+<center>
+
+![](../../imgs/dvf_vars3.png)
+
+</center>
+
+<center>
+
+![](../../imgs/dvf_vars4.png)
+
+</center>
+
+### Types de variables
+
+**Variables identifiantes** 
 
 ```{r}
 col_id <- c(
@@ -159,38 +290,44 @@ col_id <- c(
   "ancien_code_commune",
   "ancien_nom_commune", 
   "code_departement",
+  "code_region", 
   "id_parcelle",
   "ancien_id_parcelle", 
   "numero_volume",
+  "numero_disposition", 
   "latitude", 
-  "longitude"
+  "longitude", 
+  "lot1_numero", 
+  "lot2_numero", 
+  "lot3_numero", 
+  "lot4_numero", 
+  "lot5_numero"
 )
 
-dat_id <- dat %>% dplyr::select(all_of(col_id))
+dat_id <- dat2 %>% dplyr::select(all_of(col_id))
 ```
 
 ```{r}
 make_structure_table(dat_id, missing) %>% datatable()
 ```
 
-### Variables catégorielles
-
-#### Description
+**Variables catégorielles**
 
 ```{r}
-dat_cat <- dat %>%
-  dplyr::select(where(is.character)) %>% 
-  dplyr::select(-one_of(col_id)) %>% 
-  mutate(nombre_pieces_principales = dat %>% pull(nombre_pieces_principales)) %>% 
-  unclass() %>% 
-  as.data.frame(stringsAsFactors = T)  
+col_cat <- c(
+  "type_local",
+  "nombre_pieces_principales", 
+  "nature_culture", 
+  "nature_culture_speciale", 
+  "nom_departement", 
+  "nom_region"
+)
 
-col_cat <- colnames(dat_cat)
-```
-
-```{r}
-dat <- dat %>% 
+dat2 <- dat2 %>%
   mutate(across(all_of(col_cat), as.factor)) 
+
+dat_cat <- dat2 %>%
+  select(all_of(col_cat)) 
 ```
 
 
@@ -198,115 +335,7 @@ dat <- dat %>%
 make_structure_table(dat_cat, missing) %>% datatable()
 ```
 
-#### Répartition par niveau
-
-```{r}
-n_vars <- ncol(dat_cat)
-colors <- brewer.pal(n_vars, "Set3")
-
-plot_list <- list()
-for (i in 1:n_vars){
-  var_name <- colnames(dat_cat)[i]
-  n_levels <- nlevels(dat_cat[[var_name]])
-  
-  if (missing[var_name, "%"] < 100 & n_levels < 30) 
-    plot_list[[var_name]]<- make_pct_countplot(var_name = var_name, color = colors[i])
-  
-}
-```
-
-
-:::: {style="display: flex;"}
-
-::: {}
-```{r }
-plot_list$nature_mutation
-```
-:::
-
-::: {}
-
-```{r }
-plot_list$type_local
-```
-:::
-
-::::
-
-```{r}
-tab <- table(dat$type_local, dat$code_type_local) %>% 
-  prop.table() 
-colnames(tab) <- paste("code", colnames(tab), sep = "=")
-
-tab %>% 
-  mykable(title = "Tableau de proportions entre code_type_local et type_local", 
-          digits = 3)
-```
-
-```{r}
-dat <- dat %>% 
-  mutate(type_local2 = if_else(
-    
-    code_type_local == 1, 
-    
-    "Maison", 
-    
-    if_else(code_type_local == 2, 
-            
-            "Appartement", 
-            
-            if_else(code_type_local == 3, 
-                    
-                    "Dépendance", 
-                    "Local industriel. commercial ou assimilé"))
-  ))
-
-dat_cat <- dat_cat %>%
-  mutate(type_local2 = dat$type_local2)
-
-col_cat <- colnames(dat_cat)
-```
-
-<center>
-
-```{r}
-make_pct_countplot(var_name = "type_local2")
-```
-
-<center/>
-
-
-:::: {style="display: flex;"}
-
-::: {}
-```{r }
-plot_list$code_nature_culture
-```
-:::
-
-::: {}
-
-```{r }
-plot_list$nature_culture
-```
-:::
-
-::::
-
-```{r eval=FALSE}
-table(dat$nature_culture, dat$code_nature_culture) %>% View()
-```
-
-
-<center>
-
-```{r}
-plot_list$nombre_pieces_principales
-```
-
-</center>
-
-### Variables quantitatives
+**Variables quantitatives**
 
 ```{r}
 col_quanti <- c(
@@ -319,16 +348,233 @@ col_quanti <- c(
   "lot4_surface_carrez", 
   "lot5_surface_carrez")
 
-dat_quanti <- dat %>% dplyr::select(all_of(col_quanti))
+dat_quanti <- dat2 %>% dplyr::select(all_of(col_quanti))
 ```
-
-#### Description
 
 ```{r}
 make_structure_table(dat_quanti, missing) %>% datatable()
 ```
 
-#### Distribution par variable
+## Statistiques descriptives
+
+### Variables catégorielles
+
+#### Répartition par catégorie
+
+```{r}
+n_vars <- ncol(dat_cat)
+colors <- brewer.pal(n_vars, "Set3")
+
+plot_list <- list()
+for (i in 1:n_vars){
+  var_name <- colnames(dat_cat)[i]
+  n_levels <- nlevels(dat_cat[[var_name]])
+  
+  if (missing[var_name, "%"] < 100) 
+    plot_list[[var_name]]<- make_pct_countplot(dat_cat, var_name = var_name, color = colors[i])
+  
+}
+```
+
+
+:::: {style="display: flex;"}
+
+::: {}
+```{r }
+plot_list$nom_region
+```
+:::
+
+::: {}
+
+```{r }
+plot_list$type_local
+```
+:::
+
+::::
+
+:::: {style="display: flex;"}
+
+::: {}
+
+```{r }
+plot_list$nature_culture_speciale
+```
+:::
+
+::: {}
+
+```{r }
+plot_list$nature_culture
+```
+:::
+
+::::
+
+
+```{r eval=FALSE}
+table(dat2$nature_culture, dat2$code_nature_culture)
+```
+
+#### Nombre de pièces principales
+
+```{r}
+n_levels <- dat2$nombre_pieces_principales %>% nlevels()
+```
+
+Selon l’article R.111-1-1 du Code de la Construction, une pièce principale d’un logement est une pièce de vie d’une surface de plus de 9m² et 1,8m de hauteur sous plafond. Ne sont pas des pièces principales les pièces de service comme la cuisine, la salle de bains ou les WC. Au delà d’une surface de 30 m² les assurances comptent deux pièces principale ([source](https://eldorado-immobilier.com/combien-de-pieces-principales/)). 
+
+La variable `nombre_pieces_principales` comporte `r n_levels` catégories dont certaines sont peu représentées. On décide de procéder au découpage suivant afin de simplifier cette variable : 
+
+- 0 pièce
+- 1 pièce
+- 2 pièces
+- 3 pièces
+- 4 pièces 
+- 5 à 7 pièces
+- 8 à 10 pièces 
+- 11 pièces et +
+
+```{r}
+recode_number_of_rooms <- function(x) {
+  
+  x_int <- as.integer(x)
+  x <- as.character(x)
+  
+  if_else(
+    
+      x_int < 5, 
+      x, 
+      
+      if_else(
+        x_int < 8, 
+        "5-7", 
+        
+        if_else(
+          x_int < 11, 
+          "8-10", 
+          "10+"
+        )
+        
+      )
+      
+    )
+}
+
+nb_rooms <- dat2 %>% 
+  pull(nombre_pieces_principales) %>%
+  recode_number_of_rooms()
+levels <- c(
+  seq(0, 4) %>% as.character(), 
+  "5-7", 
+  "8-10", 
+  "10+"
+)
+
+nb_rooms_fct <- factor(x = nb_rooms, levels = levels)
+
+dat2 <- dat2 %>%
+  mutate(nombre_pieces_principales2 =  nb_rooms_fct)
+
+dat_cat <- dat_cat %>%
+  mutate(nombre_pieces_principales2 = dat2$nombre_pieces_principales2) %>%
+  select(-nombre_pieces_principales)
+
+col_cat <- colnames(dat_cat)
+```
+
+
+:::: {style="display: flex;"}
+
+::: {}
+```{r }
+freq(dat2$nombre_pieces_principales) %>% 
+  arrange(desc(n)) %>% 
+  datatable()
+```
+:::
+
+::: {}
+
+```{r}
+plot_list$nombre_pieces_principales
+```
+:::
+
+::::
+
+<center>
+
+```{r}
+make_pct_countplot(dat_cat, var_name = "nombre_pieces_principales2")
+```
+
+</center>
+
+
+#### Les lots 
+
+On remarque que les variables liées aux lots contiennent beaucoup de données manquantes (cf: table \@ref(tab:missingtab)). Un lot de copropriété est constitué d’une partie
+privative (appartement, cave, etc.) et d’une quote-part de partie commune (tantièmes). Seuls les 5 premiers lots sont mentionnés. Si le nombre de lots est supérieur à 5, ils ne sont pas restitués. Il existe donc des biens qui n'ont pas de lots. 
+
+On ajoute ainsi une variable qui compte le nombre de lots qu'un bien possède. On nomme cette variable `nombre_lots`. 
+
+```{r}
+lot_vars <- lapply(X = seq(1, 5), 
+                   FUN = function(i) paste0("lot", i, "_numero")) %>% unlist()
+
+lots <- dat2 %>%
+  select(all_of(lot_vars)) %>%
+  mutate_at(vars(everything()), ~replace_na(., 0)) %>%
+  as.matrix()
+
+dat2 <- dat2 %>% 
+  mutate(nombre_lots = factor(
+    x = rowSums(lots != 0), 
+    levels = seq(0, length(lot_vars))) )
+
+dat_cat <- dat_cat %>% 
+  mutate(nombre_lots = dat2$nombre_lots)
+
+col_cat <- colnames(dat_cat)
+```
+
+<center>
+
+```{r}
+make_pct_countplot(dat_cat, var_name = "nombre_lots")
+```
+
+</center>
+
+### Variables quantitatives
+
+#### Surface carrez des lots 
+
+On décide aussi de sommer les variables `lot1_surface_carrez`, ..., `lot5_surface_carrez` afin de créer une variable globale `surface_carrez_lots`. Cette variable est nulle pour les biens n'ayant pas de lots. 
+
+
+```{r}
+dat2 <- dat2 %>%
+  mutate_at(vars(ends_with("surface_carrez")), ~replace_na(., 0)) %>% 
+  mutate(surface_carrez_lots = lot1_surface_carrez + 
+           lot2_surface_carrez + 
+           lot3_surface_carrez + 
+           lot4_surface_carrez + 
+           lot5_surface_carrez)
+  
+
+dat_quanti <- dat_quanti %>%
+  mutate(
+    surface_carrez_lots = dat2$surface_carrez_lots) %>% 
+  select(-ends_with("_surface_carrez"))
+
+col_quanti <- colnames(dat_quanti)
+```
+
+
+#### Résumé statistique
 
 ```{r}
 stats_quanti <- sapply(
@@ -349,13 +595,18 @@ stats_quanti_tab <- stats_quanti %>%
   mutate_if(is.numeric, funs(format(., big.mark = " ", scientific = F, digits = 2)))
 ```
 
+Dans le tableau suivant, `N` représente le nombre de données disponibles pour la variable considérée dans la base de données `r params$year`.
+
 
 ```{r statsquantitab}
 stats_quanti_tab %>% 
   mykable(title = "Résumé statistique des variables quantitatives")
 ```
 
-On remarque que l'étendue de la distribution des différentes variables quantitative est importante. Pour représenter leurs histogrammes de sélectionner les valeurs inférieures ou égales au 3ème quantile de chaque série. 
+On remarque que l'étendue de la distribution des différentes variables quantitatives est importante. Pour représenter les histogrammes des variables `surface_relle_bati` et `surface_terrain`, on décide de sélectionner les valeurs inférieures ou égales au 3ème quantile de chaque série. Pour la variable `surface_carrez_lots`, on sélectionne uniquement les biens pour lesquels cette variable est non nulle et on applique le même filtre que pour les deux autres variables.
+
+#### Distribution 
+
 
 ```{r}
 n_vars <- ncol(dat_quanti)
@@ -365,10 +616,25 @@ plot_list <- list()
 for (i in 1:n_vars) {
   
   var_name <- col_quanti[i]
-  thresold <- stats_quanti[[var_name]][var_name, "Q75%"]
-  color <- colors[i]
   
-  plot_list[[var_name]] <- make_histogram(var_name = var_name, thresold = thresold, color = color)
+  if (var_name == "surface_carrez_lots") {
+      df_plot <- dat_quanti %>% 
+        filter(surface_carrez_lots > 0)
+      q <- df_plot %>% 
+        pull(surface_carrez_lots) %>%
+        quantile()
+      df_plot <- df_plot %>% filter(surface_carrez_lots <= q["75%"])
+        
+  }
+  
+  else {
+    thresold <- stats_quanti[[var_name]][var_name, "Q75%"] 
+    df_plot <- dat_quanti %>%
+      filter(!!sym(var_name) <= thresold)
+  }
+  
+  color <- colors[i]
+  plot_list[[var_name]] <- make_histogram(df_plot, var_name = var_name, color = color)
 
 }
 ```
@@ -390,42 +656,15 @@ plot_list$surface_terrain
 
 ::::
 
-:::: {style="display: flex;"}
-
-::: {}
-```{r }
-plot_list$lot1_surface_carrez
-```
-:::
-
-::: {}
+<center>
 
 ```{r }
-plot_list$lot2_surface_carrez
+plot_list$surface_carrez_lots
 ```
-:::
 
-::::
+</center>
 
-:::: {style="display: flex;"}
-
-::: {}
-```{r }
-plot_list$lot3_surface_carrez
-```
-:::
-
-::: {}
-
-```{r }
-plot_list$lot4_surface_carrez
-```
-:::
-
-::::
-
-
-#### Variable cible
+### Variable cible : `valeur_fonciere`
 
 
 ```{r }
@@ -442,7 +681,8 @@ plot_list$valeur_fonciere
 
 </center>
 
-## Analyse statistique 
+
+## Analyse multivariée
 
 ### Valeurs abberantes (outliers)
 
@@ -455,11 +695,26 @@ où $\tilde{X}$ est la médiane de la série $X$ et $\text{MAD}$ l'écart absolu
 
 ```{r}
 outliers <- sapply(
+  
   X = col_quanti, 
-  FUN = function(var_name) dat %>% pull(var_name) %>% hampel_filter()
+  
+  FUN = function(var_name) {
+    
+    # consider only positive values for surface_carrez_lots
+    if (var_name == "surface_carrez_lots") {
+      tmp <- dat2 %>%
+        filter(surface_carrez_lots > 0)
+    }
+    else { tmp <- dat2 }
+    
+    tmp %>% 
+      pull(var_name) %>% hampel_filter()
+    
+  }
+    
 )
 
-n <- nrow(dat) 
+n <- nrow(dat2) 
 
 outliers_freqs <- sapply(
   X = outliers, 
@@ -469,48 +724,241 @@ outliers_freqs <- sapply(
   t() %>% 
   as.data.frame() %>% 
   rename(`%` = V1)
+```
 
+L'identification des valeurs aberrantes pour la variable `surface_carrez_lots` porte sur les biens possédant des lots. On considère ici les biens pour lesquels `surface_carrez_lots` = 0 ne sont pas des point aberrants.  
+
+```{r}
 outliers_freqs %>% 
   arrange(desc(`%`)) %>% 
   mutate_if(is.numeric, funs(format(100 * ., big.mark = " ", scientific = F, digits = 2))) %>% 
   mykable(title = "Proportion d'outliers par variable")
 ```
 
-```{r cache=T}
+
+```{r}
 to_remove <- outliers %>% 
   unlist() %>% 
   unique() %>% 
   as.character()
 
-dat_no_outliers <- dat %>% 
+dat_no_outliers <- dat2 %>% 
   filter(!(rownames(.) %in% to_remove)) %>%
   filter(as.numeric(nombre_pieces_principales) <= 12) 
 
-n <- dat %>% nrow() %>% format(big.mark = " ", scientific = F)
+n <- dat2 %>% nrow() %>% format(big.mark = " ", scientific = F)
 n_bis <- dat_no_outliers %>% nrow() %>% format(big.mark = " ", scientific = F)
 ```
 
-On décide de supprimer les valeurs aberrantes ainsi que les biens dont le nombre de pièces principales est supérieur à 12 : 
+On décide de supprimer les valeurs aberrantes identifiées par le filtre d'Hampel : 
 
 - `r n` observations dans la base de données initiale
 - `r n_bis` observations après suppressions des outliers
 
-### Analyses croisées
 
 ```{r}
 n_samples <- format(10000, big.mark = " ", scientific = F)
 ```
 
-Afin de pouvoir construire des visualisations assez rapidement, on décide de travailler sur un sous-échantillon de la base de données de taille `r n_samples`. 
+Afin de pouvoir construire des visualisations assez rapidement, on décide de travailler sur un `r n_samples`-échantillon de la base de données sans outliers. Concernant la variable `surface_carrez_lots`, on construits l'échantillon à partir des biens possédants des lots (`surface_carrez_lots` > 0).
+
+### Variables catégorielles & `valeur_fonciere`
+
+#### Distribution par catégorie
+
+```{r}
+cat_vars <- setdiff(x = col_cat, 
+                    y = c("code_nature_culture", 
+                          "code_nature_culture_speciale", 
+                          "nature_mutation"))
+
+target <- "valeur_fonciere"
+```
 
 
-#### Variables quantitatives & `valeur_fonciere`
+```{r eval=FALSE}
+plot_list <- list()
+for (mask in cat_vars) {
+  
+  df_subset <- dat_no_outliers %>%
+      dplyr::select(c(all_of(mask), all_of(target))) %>% 
+    draw_samples()
+  
+  n_levels <- df_subset %>% 
+    pull(mask) %>% 
+    unique() %>% 
+    length()
+  
+  if (n_levels <= 15) {
+    
+    plot_list[[mask]] <- distribution_per_category(df_subset,
+                                                   cat_var = mask, 
+                                                   target = target, 
+                                                   multiple = F) 
+    
+  }
+  
+}
+  
+```
+
+
+```{r}
+target <- "valeur_fonciere"
+idxs <- outliers$valeur_fonciere %>% as.character()
+
+plot_list <- list()
+
+for (var in cat_vars) {
+  
+  tmp <- dat2 %>%
+    select(c(
+      all_of(target), 
+      all_of(var)
+    )) %>%
+    filter(!(rownames(.) %in% idxs)) %>%
+    draw_samples()
+  
+  p <- tmp %>% boxplot_per_category(target = target, by = var) 
+  plot_list[[var]] <- p 
+  
+}
+```
+
+:::: {style="display: flex;"}
+
+::: {}
+```{r }
+plot_list$type_local
+```
+:::
+
+::: {}
+
+```{r fig.width=5}
+plot_list$nom_region
+```
+:::
+
+::::
+
+:::: {style="display: flex;"}
+
+::: {}
+```{r }
+plot_list$nombre_pieces_principales2
+```
+:::
+
+::: {}
+
+```{r fig.width=5}
+plot_list$nombre_lots
+```
+:::
+
+::::
+
+<center>
+
+```{r fig.width=7, fig.height=4}
+plot_list$nature_culture
+```
+
+</center>
+
+<center>
+
+```{r fig.width=8, fig.height=5}
+plot_list$nature_culture_speciale
+```
+
+</center>
+
+
+#### Tests statistiques
+
+On utilise à nouveau le jeu de données diminué des outliers identifiés avec le filtre d'Hampel afin d'effectuer les tests statistiques. L'objectif est de déterminer s'il y a des différences significatives de valeurs foncières entre les différents catégories des variables `type_local` et `nombre_pieces_principales2`.
+
+**Valeur foncière entre maisons et appartement** 
+
+```{r}
+vf_houses <- dat_no_outliers %>% 
+  filter(type_local == "Maison") %>%
+  pull(valeur_fonciere)
+
+vf_flats <- dat_no_outliers %>% 
+  filter(type_local == "Appartement") %>%
+  pull(valeur_fonciere)
+
+t_results <- t.test(
+  x = vf_houses, 
+  y = vf_flats, 
+  alternative = "greater")
+```
+
+```{r}
+tab <- c(t_results$estimate, t_results$p.value) %>% 
+  format(scientific = F, big.mark = " ") %>% 
+  as.data.frame() %>% 
+  t()
+
+colnames(tab) <- c("Maison", "Appartement", "p value")
+rownames(tab) <- ""
+
+tab %>%
+  mykable(title = "Résultats du test de Student entre valeurs foncières des maisons et des appartements")
+```
+
+
+**Valeurs foncières et nombres de pièces**
+
+Les variables `noms_regions`, `nombre_pieces_principales2` et `nombre_lots` contenant plus de 2 catégories, on effectue un test ANOVA. L'ANOVA permet de voir si une variable numérique a des valeurs différentes en fonction de plusieurs groupes. C'est une généralisation du test de Student permettant de comparer plus de deux groupes.
+
+```{r}
+target <- "valeur_fonciere"
+
+aov_fits <- sapply(
+  
+  X = c("nom_region", "nombre_pieces_principales2", "nombre_lots"), 
+  
+  FUN = function(var) {
+    fm <- paste(target, var, sep = "~") %>% as.formula()
+    fit <- aov(fm, data = dat_no_outliers) 
+    
+    res <- summary(fit) %>%
+      unclass() %>%
+      as.data.frame() 
+    
+    return (res[var, ])
+    
+  }, 
+  
+  USE.NAMES = T, 
+  simplify = F
+) %>% bind_rows()
+  
+```
+
+```{r}
+aov_fits %>%
+  mykable(title = "Résumé des tests ANOVA")
+```
+
+Il y a bien des différences siginificatives de valeur foncière entre biens ayant un nombre de pièces principales (resp. lots) différent et les biens venant de régions différentes. Une régression linéaire permettrait d'estimer l'effet marginal du nombre de pièces (resp. lots) sur la valeur foncière et les différences de valeur foncière entre les régions. 
+
+### Variables quantitatives & `valeur_fonciere`
+
+#### Nuages de points
 
 ```{r}
 vars <- setdiff(col_quanti, "valeur_fonciere")
 n_vars <- length(vars)
-colors <- brewer.pal(n_vars, "Set3")
 target <- "valeur_fonciere"
+
+colors <- brewer.pal(n_vars, "Set3")
+
+n_samples <- 10000
 
 plot_list <- list()
 for (i in 1:n_vars) {
@@ -518,9 +966,15 @@ for (i in 1:n_vars) {
   x_var <- vars[i]
   c <- colors[i]
   
-  df_subset <- dat_no_outliers %>%
+  if (x_var == "surface_carrez_lots") {
+    tmp <- dat_no_outliers %>% 
+      filter(surface_carrez_lots > 0)
+  }
+  else { tmp <- dat_no_outliers }
+  
+  df_subset <- tmp %>%
       dplyr::select(c(all_of(x_var), all_of(target))) %>% 
-    draw_samples()
+    draw_samples(n_samples = n_samples)
   
   plot_list[[x_var]] <- make_scatter_plot(df = df_subset, 
                                           x_var = x_var, 
@@ -548,104 +1002,456 @@ plot_list$surface_terrain
 
 ::::
 
-:::: {style="display: flex;"}
-
-::: {}
-```{r }
-plot_list$lot1_surface_carrez
-```
-:::
-
-::: {}
-
-```{r }
-plot_list$lot2_surface_carrez
-```
-:::
-
-::::
-
-:::: {style="display: flex;"}
-
-::: {}
-```{r }
-plot_list$lot3_surface_carrez
-```
-:::
-
-::: {}
-
-```{r }
-plot_list$lot4_surface_carrez
-```
-:::
-
-::::
-
 <center>
 
 ```{r }
-plot_list$lot5_surface_carrez
+plot_list$surface_carrez_lots
 ```
 
-<center/>
+</center>
 
-#### Variables catégorielles & `valeur_fonciere`
+#### Matrice des corrélations 
+
+Afin d'avoir une idée plus précise des corrélations entre les variables quantitatives de la base de données et `valeur_fonciere`, on décide de calculer le coefficient de corrélation linéaire de Pearson sur le jeu de données sans outliers. 
 
 ```{r}
-cat_vars <- setdiff(x = col_cat, 
-                    y = c("type_local", 
-                          "code_nature_culture", 
-                          "code_nature_culture_speciale"))
+cor_no_outliers <- dat_no_outliers %>%
+  select(all_of(col_quanti)) %>% 
+  cor(use = "complete.obs")
 
-target <- "valeur_fonciere"
-
-plot_list <- list()
-for (mask in cat_vars) {
-  
-  df_subset <- dat_no_outliers %>%
-      dplyr::select(c(all_of(mask), all_of(target))) %>% 
-    draw_samples()
-  
-  n_levels <- df_subset %>% 
-    pull(mask) %>% 
-    unique() %>% 
-    length()
-  
-  if (n_levels <= 15) {
-    
-    plot_list[[mask]] <- histogram_per_category(df = df_subset,
-                                                cat_var = mask, 
-                                                target = target) 
-    
-  }
-  
-}
-  
+cor_plot <- ggcorrplot::ggcorrplot(
+  cor_no_outliers, 
+  hc.order = TRUE, 
+  type = "lower",
+  outline.col = "white",
+  ggtheme = theme_minimal(),
+  show.legend = F, 
+  colors = c("darkred", "white", "darkgreen")) 
 ```
 
 <center>
 
-```{r fig.width=7, fig.height=5}
-plot_list$nature_mutation
+```{r fig.width=5, fig.height=4}
+ggplotly(cor_plot)
+
 ```
 
-<center/>
+</center>
 
+### `valeur_foncière` selon la localisation 
+
+Il semble enfin pertinent de représenter la répartition géographique des biens selon leur valeur foncière. On travaille ici sur le jeu de données diminué des outliers. Afin d'éviter des temps d'affichage trop long, on travaille sur un 10 000-échantillon. 
+
+```{r}
+samp <- dat_no_outliers %>%
+  filter(rownames(.) %in% sample(x = 1:nrow(dat_no_outliers), 
+                                 size = 10000))
+
+pal <- colorNumeric(
+  palette = "Blues",
+  domain = samp$valeur_fonciere)
+
+map_no_outlier <- samp %>%
+  leaflet() %>% 
+     addTiles() %>% 
+     setView(lng = 2.80, lat = 46.80, zoom = 5.1) %>% 
+     addCircleMarkers(
+       lng = ~longitude,
+       lat = ~latitude, 
+       radius = 0, 
+       color = ~pal(valeur_fonciere))
+```
 
 <center>
 
-```{r fig.width=7, fig.height=5}
-plot_list$type_local2
+```{r}
+map_no_outlier
 ```
 
-<center/>
+</center>
 
+
+## Régression linéaire
+
+### OLS
+
+#### Premier modèle
+
+On décide de mettre la variable `valeur_foncière` au logarithme pour les modèles de régression afin de réduire les effest d'échelles. On nomme cette variable `l_valeur_fonciere`. 
+
+La régression comporte des variables catégorielles dont les catégories de référence sont les suivantes :
+
+| Variable  | Référence  |
+|---|---|
+| `nombre_pieces_principales` | 0  |
+| `nombre_lots` | 0 |
+| `nom_region`  | Île-de-France |
+
+```{r}
+x_vars <- c(
+  "type_local", 
+  "nombre_pieces_principales", 
+  "nombre_lots", 
+  "nom_region", 
+  "surface_terrain",
+  "surface_reelle_bati", 
+  "surface_carrez_lots"
+)
+
+
+dat_mod <- dat2 %>%
+  select(-nombre_pieces_principales) %>% 
+  rename(nombre_pieces_principales = nombre_pieces_principales2) %>% 
+  
+  select(all_of(x_vars), valeur_fonciere) %>%
+  
+  mutate(l_valeur_fonciere = log(valeur_fonciere), 
+         nom_region = relevel(nom_region, ref = "Île-de-France"))
+```
 
 <center>
 
-```{r fig.width=7, fig.height=5}
+```{r}
+make_histogram(dat_mod, "l_valeur_fonciere")
+```
+
+</center>
+
+
+```{r}
+y_var <- "l_valeur_fonciere"
+
+fm <- paste(y_var, 
+            paste(x_vars, collapse = "+"), 
+            sep = "~")
+
+lm1 <- lm(formula = fm, data = dat_mod)
+```
+
+```{r eval=FALSE}
+stargazer(lm1, type = "text")
+```
+
+<center>
+
+```{r results='asis'}
+stargazer(lm1, type = "html", title = "Premier modèle") 
+```
+
+</center>
+
+On remarque que seule la catégorie `nombre_lots` = 1 apparaît dans les résultats du modèle. 
+
+```{r}
+dat_mod %>%
+  filter(!(nombre_lots %in% c(0, 1))) %>%
+  group_by(nombre_lots) %>%
+  summarise_at(
+    vars(c(surface_terrain, surface_reelle_bati, surface_carrez_lots)), 
+    mean, 
+    na.rm = T
+  ) %>%
+  mykable(title = "Moyenne des variables quantitatives selon le nombre de lots")
+```
+
+La table précédente indique que la surface du terrain est une donnée manquante pour les biens ayant au moins 2 lots. On décide de relancer un modèle de régression en enlevant la variable `surface_terrain`.
+
+```{r}
+lm2 <-update(lm1, .~. -surface_terrain) 
+```
+
+```{r eval=FALSE}
+stargazer(lm2, type = "text")
+```
+
+<center>
+
+```{r results='asis'}
+stargazer(lm1, type = "html", title = "Second modèle sans la variable surface_terrain") 
+```
+
+</center>
+
+
+#### Outliers & Distance de Cook
+
+La distance de Cook est une mesure calculée par rapport à un modèle de régression donné et n'est donc influencée que par les variables $X$ incluses dans le modèle. La distance de Cook pour chaque observation $i$ mesure le changement de $\hat{y}$ pour toutes les observations avec et sans la présence de l'observation $i$. Nous savons donc dans quelle mesure l'observation $i$ a eu un impact sur les valeurs ajustées. Mathématiquement, la distance de Cook $D_i$ pour l'observation $i$ est calculée comme suit :
+
+$$
+D{_i}=\frac{\sum_{j=1}^{n}\left( \hat{y}_{j} - \hat{y}_{j \left(i \right)} \right)^{2}}{p \times \text{MSE}}
+$$
+avec :
+
+- $\hat{y}_{j}$ la valeur de la $j$-ème valeur ajustée lorsque toutes les observations sont incluses. 
+- $\hat{y}_{j \left(i \right)}$ la $j$-ème valeur ajustée lorsque l'observation $i$ n'est pas incluse dans l'estimation. 
+- $\text{MSE}$ l'erreur quadratique moyenne tq $\text{MSE} = \frac{1}{n} \sum_{i=1}^n (y_i - \hat{y}_i)^2$
+- $p$ le nombre de coefficients dans le modèle de régression. 
+
+```{r}
+cooksd <- cooks.distance(lm2)
+
+cooksd_df <- data.frame(obs = 1:length(cooksd), distance = cooksd)
+frontier <- 4 * mean(cooksd, na.rm = TRUE)
+
+cooksd_df <- cooksd_df %>%
+  mutate(influential = if_else(distance > frontier, "yes", "no")) 
+```
+
+```{r}
+tab <- cooksd_df %>% 
+  pull(influential) %>%
+  table() %>% 
+  prop.table() %>%
+  as.data.frame() %>%
+  mutate(N = format(Freq * nrow(cooksd_df), 
+                    big.mark = " ", scientific = F)) %>% 
+  mutate(Freq = 100 * Freq) 
+
+colnames(tab) <- c("Influential", "%", "N") 
+
+tab %>% 
+  mykable(title = "Proportions d'observations influentes selon la distance de Cook")
+```
+
+```{r}
+idxs_outliers <- cooksd_df %>% filter(influential == "yes") %>% rownames()
+n_outliers <- length(idxs_outliers)
+
+idxs <- cooksd_df %>% filter(influential == "no") %>% rownames()
+idxs_smp <- sample(x = idxs, size = n_outliers)
+
+smp_outliers <- dat_mod %>%
+  filter(rownames(.) %in% c(idxs_smp, idxs_outliers)) %>%
+  mutate(
+    fitted = c(
+      lm2$fitted.values[idxs_outliers], 
+      lm2$fitted.values[idxs_smp]
+    ), 
+    outlier = c(
+      rep("yes", n_outliers), 
+      rep("no", n_outliers)
+    )
+  ) %>% mutate(outlier = factor(outlier, levels = c("yes", "no")))
+```
+
+<center>
+
+```{r}
+p <- smp_outliers %>% 
+  ggplot(mapping = aes(x = l_valeur_fonciere, y = fitted, color = outlier)) +
+    geom_point(alpha = .5) +
+    scale_x_continuous(limits = c(min(smp_outliers$l_valeur_fonciere),
+                                  max(smp_outliers$l_valeur_fonciere))) + 
+    scale_y_continuous(limits = c(min(smp_outliers$fitted), 
+                                  max(smp_outliers$fitted))) + 
+    geom_abline(intercept = 0, slope = 1, linetype = "dotted") +
+    labs(x = "Observé", y = "Estimé", title = "Logarithme des valeurs foncières")
+
+ggplotly(p) %>%
+  layout(legend = list(orientation = "h", 
+                       xanchor = "center", 
+                       x = .5))
+```
+
+</center>
+
+On décide alors d'estimer un troisième modèle en supprimant les outliers identifiés par la méthode de la distance de Cook.
+
+#### Modèle sans outliers
+
+```{r}
+dat_mod_no_outliers <- dat_mod %>%
+  filter(rownames(.) %in% idxs)
+```
+
+```{r}
+fm2 <- lm2$call$formula
+lm3 <- lm(formula = fm2, data = dat_mod_no_outliers)
+```
+
+
+```{r eval=FALSE}
+stargazer(lm3, type = "text")
+```
+
+<center>
+
+```{r results='asis'}
+stargazer(lm3, type = "html", title = "Second modèle sans outliers") 
+```
+
+</center>
+
+<center>
+
+```{r}
+N <- 10000
+title <- paste0("Logarithme des valeurs foncières après suppression des outliers (N=", N, ")")
+
+p <- data.frame(
+  actual = dat_mod_no_outliers$l_valeur_fonciere, 
+  fitted = lm3$fitted.values
+) %>%
+  draw_samples(n_samples = N) %>%
+  ggplot() +
+    geom_point(mapping = aes(x = actual, y = fitted), 
+               alpha = .5, 
+               color = "grey") +
+    geom_abline(linetype = "dotted") +
+    labs(x = "Observé", y = "Estimé", title = title) 
+  
+ggplotly(p)
+```
+
+
+</center>
+
+La part de la variance expliquée par le modèle passe de 20 à 30% lorsque l'on supprime les points aberrants. 
+
+#### Analyse des outliers
+
+
+```{r}
+plot_list <- sapply(
+  
+  X = c("type_local",
+        "nombre_pieces_principales",
+        "nombre_lots",
+        "nom_region"), 
+  
+  FUN = barplot_per_category, 
+  df = smp_outliers, 
+  cat_var2 = "outlier", 
+  
+  simplify = F, 
+  USE.NAMES = T
+  
+)
+```
+
+On construit sous-échantillon de taille `r nrow(smp_outliers)` à partir du jeu de données dans lequel la proportion d'outliers est identique à celle des observations "normales" au sens du modèle de régression. 
+
+On commence par représenter la répartition des variables catégorielles du modèle pour les points aberrants et les points non aberrants.
+
+
+:::: {style="display: flex;"}
+
+::: {}
+```{r }
 plot_list$nombre_pieces_principales
 ```
+:::
 
-<center/>
+::: {}
+
+```{r }
+plot_list$nombre_lots
+```
+:::
+
+::::
+
+<center>
+
+```{r }
+plot_list$type_local
+```
+
+</center>
+
+<center>
+
+```{r fig.width=5, fig.height=4.5}
+plot_list$nom_region %>%
+  layout(legend = list(orientation = "h", y = -.8))
+```
+
+</center>
+
+On remarque d'importantes disparités entre les régions en termes de répartition des outliers. Il pourrait être judicieux d'identifier des zones géographiques proches et d'estimer un modèle par zone. 
+
+On représente ensuite la distribution des variables quantitatives `surface_relle_bati`, `surface_carrez_lots` et `l_valeur_fonciere` selon que l'observation soit une valeur aberrante ou non. 
+
+```{r}
+plot_list <- sapply(
+  
+  X = c("l_valeur_fonciere", 
+        "surface_reelle_bati", 
+        "surface_carrez_lots"), 
+  
+  FUN = distribution_per_category, 
+  df = smp_outliers, 
+  by = "outlier", 
+  multiple = F, 
+  
+  simplify = F, USE.NAMES = T
+  
+)
+```
+
+<center>
+
+```{r}
+plot_list$l_valeur_fonciere
+```
+
+</center>
+
+:::: {style="display: flex;"}
+
+::: {}
+```{r }
+plot_list$surface_reelle_bati
+```
+:::
+
+::: {}
+
+```{r }
+plot_list$surface_carrez_lots
+```
+:::
+
+::::
+
+Enfin, il apparaît judicieux de déterminer la position géographique des biens identifiés comme valeurs aberrantes de celle des biens "normaux". On remarque une nette dichotomies entre les deux groupes. A première vue, les points aberrants identifiés par la distance de Cook semblent situés dans des régions moins peuplées. Cela est possiblement la conséquence d'avoir mis la région Ile-de-France comme niveau de référence pour la variable `nom_region` dans la régression. 
+
+```{r}
+smp_outliers <- smp_outliers %>%
+  mutate(
+    longitude = dat2 %>%
+      filter(rownames(.) %in% c(idxs_smp, idxs_outliers)) %>%
+      pull(longitude), 
+    latitude = dat2 %>%
+      filter(rownames(.) %in% c(idxs_smp, idxs_outliers)) %>%
+      pull(latitude)
+  )
+```
+
+
+```{r}
+factpal <- colorFactor(c("#F9AD9E", "#8CDCDC"), smp_outliers$outlier)
+
+map_outliers <- smp_outliers %>%
+  draw_samples() %>%
+  leaflet() %>% 
+     addTiles() %>% 
+     setView(lng = 2.80, lat = 46.80, zoom = 5.1) %>% 
+     addCircleMarkers(
+       lng = ~longitude,
+       lat = ~latitude, 
+       radius = 0, 
+       color = ~factpal(outlier))
+```
+
+<center>
+
+```{r}
+map_outliers
+```
+
+</center>
+
+
+
+
