@@ -6,6 +6,7 @@ output:
   bookdown::html_document2: 
     toc: true
     toc_float: true
+    toc_depth: 4
     number_sections: false
 editor_options: 
   chunk_output_type: console
@@ -44,6 +45,7 @@ BACKUP_DIR <- "../../backup/"
 
 ZIP_DIR <- paste0(DATA_DIR, "dvf.zip") 
 ZIP_CODE_DIR <- paste0(DATA_DIR, "french-zip-code/")
+DENSITY_DIR <- paste0(DATA_DIR, "densite/")
 ```
 
 
@@ -139,7 +141,7 @@ dat <- dat %>%
   ))
 ```
 
-```{r}
+```{r cleaneddata}
 # dat2 <- dat %>%
 #   filter(nature_mutation == "Vente") %>%
 #   filter(type_local %in% c("Appartement", "Maison")) 
@@ -165,6 +167,52 @@ dat2 %>%
   scroll_box(width = "100%", box_css = "border: 0px;")
 ```
 
+### Encodage de la variable `surface_terrain`
+
+La table suivante indique que la variable `surface_terrain` contient 75% de données manquantes pour les biens de type "Appartement". On décide alors de mettre à 0 les observations telles que `type_local` = "Appartement" et `surface_terrain` = `NA`.  
+
+```{r}
+tab <- sapply(
+  X = c("Maison", "Appartement"), 
+  
+  FUN = function(type) {
+    
+    tmp <- dat2 %>% filter(type_local == type)
+    
+    tab <- tmp %>% 
+      select(surface_terrain) %>% 
+      freq.na() %>%
+      t() %>%
+      as.data.frame() %>%
+      mutate(N = nrow(tmp)) %>% 
+      mutate_at(vars(missing, N), 
+                format, 
+                scientific = F, 
+                big.mark = " ") %>%
+      relocate(N, .before = missing)
+    
+    return (tab)
+    
+  }, 
+  
+  simplify = T, 
+  USE.NAMES = T
+  
+)
+
+
+tab %>% 
+  mykable(title = "Données manquantes pour la surface du terrain selon le type de bien")
+```
+
+```{r}
+dat2[dat2$type_local == "Appartement", "surface_terrain"] <- dat2 %>%
+  filter(type_local == "Appartement") %>%
+  mutate(surface_terrain = replace_na(surface_terrain, 0)) %>%
+  pull(surface_terrain)
+```
+
+
 ### Ajout des régions
 
 ```{r regions}
@@ -181,7 +229,74 @@ regions <- read_csv(paste0(ZIP_CODE_DIR, "regions.csv")) %>%
 
 regions_dpts <- inner_join(x = dpts, y = regions, by = "code_region")
 
-dat2 <- inner_join(dat2, regions_dpts, by = "code_departement")
+dat2 <- left_join(dat2, regions_dpts, by = "code_departement")
+```
+
+### Ajout des variables de densité / population
+
+On récupère une grille communale de densité depuis le [site](https://www.insee.fr/fr/information/6439600) de l'Insee. Cette grille comprend le code de la commune, son nombre d'habitants (2019) et une variable `degre_densite` à 7 niveaux : 
+
+1. "Rural à habitat dispersé"
+2. "Centres urbains intermédiaires"
+3. "Bourgs ruraux"       
+4. "Ceintures urbaines"            
+5. "Rural à habitat très dispersé"
+6. "Petites villes"                
+7. "Grands centres urbains"
+
+On décide d'y ajouter le nombre d'habitants pour les arrondissements de Paris, Marseille et Lyon. Pour ces 3 villes, la variable `degre_densite` vaut respectivement "Paris", "Marseille" et "Lyon". 
+
+
+```{r }
+# census data for all french towns
+densite <- readxl::read_xlsx(
+  path = paste0(DENSITY_DIR, "grille_densite_7_niveaux_detaille_2022.xlsx")) %>% 
+  dplyr::rename(
+    code_commune = `Code commune`, 
+    degre_densite = `Libellé degré densité`, 
+    pop = `Population \r\nmunicipale \r\n2019`
+  ) %>%
+  select(c(code_commune, degre_densite, pop))
+
+# add paris neighborhoods 
+# source: https://94.citoyens.com/2019/population-2019-a-paris-par-arrondissement,07-01-2019.html
+densite_paris <- read_csv(file = paste0(DENSITY_DIR, "population_paris.csv")) %>%
+  rename(nom_commune = `Nom de la commune`) %>%
+  filter(nom_commune != "Total") %>%
+  select(1:2)
+colnames(densite_paris)[2] <- "pop"
+
+paris_neighborhoods_code <- dat2 %>% 
+  filter(nom_commune %in% densite_paris$nom_commune) %>% 
+  select(c(nom_commune, code_commune)) %>%
+  unique()
+
+densite_paris <- inner_join(densite_paris, 
+                            paris_neighborhoods_code, 
+                            by = "nom_commune") %>% 
+  select(-nom_commune) %>%
+  mutate(degre_densite = rep("Paris", nrow(.))) %>%
+  relocate(code_commune, .before = "pop") %>% 
+  relocate(degre_densite, .before = "pop") 
+
+# add marseille neighborhoods (wiki)
+densite_marseille <- read_csv(
+  file = paste0(DENSITY_DIR, "population_marseille.csv")) %>% 
+  mutate(degre_densite = rep("Marseille", nrow(.))) %>%
+  select(c(code_commune, degre_densite, pop))
+
+# add lyon neighborhoods (wiki)
+densite_lyon <- read_csv(
+  file = paste0(DENSITY_DIR, "population_lyon.csv")) %>% 
+  mutate(degre_densite = rep("Lyon", nrow(.))) %>%
+  select(c(code_commune, degre_densite, pop))
+
+densite <- rbind(densite, 
+                 densite_paris, 
+                 densite_marseille, 
+                 densite_lyon)
+
+dat2 <- left_join(dat2, densite, by = "code_commune")
 ```
 
 
@@ -205,9 +320,9 @@ leaflet() %>%
 <center/>
 
 
-### Données manquantes
+### Données manquantes {#missing}
 
-```{r missing}
+```{r}
 # missing <- dat2 %>% freq.na() %>% as.data.frame() 
 
 file_name <- paste0(BACKUP_DIR, "exploration/missing_dvf_", params$year, ".RData")
@@ -231,17 +346,19 @@ p <- dat2 %>%
 :::: {style="display: flex;"}
 
 ::: {}
+
 ```{r missingtab}
 missing %>% 
   dplyr::filter(missing > 0) %>%
   datatable()
 ```
+
 :::
 
 ::: {}
 
 ```{r fig.height=5}
-p %>% ggplotly()
+p 
 ```
 :::
 
@@ -320,7 +437,8 @@ col_cat <- c(
   "nature_culture", 
   "nature_culture_speciale", 
   "nom_departement", 
-  "nom_region"
+  "nom_region", 
+  "degre_densite"
 )
 
 dat2 <- dat2 %>%
@@ -346,7 +464,8 @@ col_quanti <- c(
   "lot2_surface_carrez", 
   "lot3_surface_carrez", 
   "lot4_surface_carrez", 
-  "lot5_surface_carrez")
+  "lot5_surface_carrez", 
+  "pop")
 
 dat_quanti <- dat2 %>% dplyr::select(all_of(col_quanti))
 ```
@@ -371,10 +490,27 @@ for (i in 1:n_vars){
   n_levels <- nlevels(dat_cat[[var_name]])
   
   if (missing[var_name, "%"] < 100) 
-    plot_list[[var_name]]<- make_pct_countplot(dat_cat, var_name = var_name, color = colors[i])
+    plot_list[[var_name]]<- make_pct_countplot(df = dat_cat, var_name = var_name)
   
 }
 ```
+
+:::: {style="display: flex;"}
+
+::: {}
+```{r }
+plot_list$type_local
+```
+:::
+
+::: {}
+
+```{r fig.width=6, fig.height=4}
+plot_list$nombre_pieces_principales
+```
+:::
+
+::::
 
 
 :::: {style="display: flex;"}
@@ -388,29 +524,27 @@ plot_list$nom_region
 ::: {}
 
 ```{r }
-plot_list$type_local
+plot_list$degre_densite
 ```
 :::
 
 ::::
 
-:::: {style="display: flex;"}
+<center>
 
-::: {}
-
-```{r }
+```{r fig.width=6, fig.height=4}
 plot_list$nature_culture_speciale
 ```
-:::
 
-::: {}
+</center>
 
-```{r }
+<center>
+
+```{r fig.width=6, fig.height=4}
 plot_list$nature_culture
 ```
-:::
 
-::::
+</center>
 
 
 ```{r eval=FALSE}
@@ -433,8 +567,7 @@ La variable `nombre_pieces_principales` comporte `r n_levels` catégories dont c
 - 3 pièces
 - 4 pièces 
 - 5 à 7 pièces
-- 8 à 10 pièces 
-- 11 pièces et +
+- 8 et +
 
 ```{r}
 recode_number_of_rooms <- function(x) {
@@ -444,19 +577,13 @@ recode_number_of_rooms <- function(x) {
   
   if_else(
     
-      x_int < 5, 
+      x_int <= 5, 
       x, 
       
       if_else(
         x_int < 8, 
         "5-7", 
-        
-        if_else(
-          x_int < 11, 
-          "8-10", 
-          "10+"
-        )
-        
+        "8+"
       )
       
     )
@@ -465,11 +592,11 @@ recode_number_of_rooms <- function(x) {
 nb_rooms <- dat2 %>% 
   pull(nombre_pieces_principales) %>%
   recode_number_of_rooms()
+
 levels <- c(
   seq(0, 4) %>% as.character(), 
   "5-7", 
-  "8-10", 
-  "10+"
+  "8+"
 )
 
 nb_rooms_fct <- factor(x = nb_rooms, levels = levels)
@@ -491,13 +618,14 @@ col_cat <- colnames(dat_cat)
 ```{r }
 freq(dat2$nombre_pieces_principales) %>% 
   arrange(desc(n)) %>% 
+  rownames_to_column(var = "Nombre de pièces principales") %>%
   datatable()
 ```
 :::
 
 ::: {}
 
-```{r}
+```{r fig.width=6, fig.height=4}
 plot_list$nombre_pieces_principales
 ```
 :::
@@ -515,7 +643,7 @@ make_pct_countplot(dat_cat, var_name = "nombre_pieces_principales2")
 
 #### Les lots 
 
-On remarque que les variables liées aux lots contiennent beaucoup de données manquantes (cf: table \@ref(tab:missingtab)). Un lot de copropriété est constitué d’une partie
+On remarque que les variables liées aux lots contiennent beaucoup de données manquantes (cf: section [Données manquantes](#missing)). Un lot de copropriété est constitué d’une partie
 privative (appartement, cave, etc.) et d’une quote-part de partie commune (tantièmes). Seuls les 5 premiers lots sont mentionnés. Si le nombre de lots est supérieur à 5, ils ne sont pas restitués. Il existe donc des biens qui n'ont pas de lots. 
 
 On ajoute ainsi une variable qui compte le nombre de lots qu'un bien possède. On nomme cette variable `nombre_lots`. 
@@ -540,13 +668,39 @@ dat_cat <- dat_cat %>%
 col_cat <- colnames(dat_cat)
 ```
 
-<center>
+
+On décide aussi de créer la variable dummy `lot` qui vaut 1 si `nombre_lots` > 0, 0 sinon.
 
 ```{r}
-make_pct_countplot(dat_cat, var_name = "nombre_lots")
+dat2 <- dat2 %>%
+  mutate(lot = factor(
+    x = if_else(nombre_lots == "1", 1, 0), 
+    levels = c(0, 1)
+  ))
+
+dat_cat <- dat_cat %>% 
+  mutate(lot = dat2$lot)
+
+col_cat <- colnames(dat_cat)
 ```
 
-</center>
+:::: {style="display: flex;"}
+
+::: {}
+```{r }
+make_pct_countplot(dat_cat, var_name = "nombre_lots")
+```
+:::
+
+::: {}
+
+```{r}
+make_pct_countplot(dat_cat, var_name = "lot")
+```
+:::
+
+::::
+
 
 ### Variables quantitatives
 
@@ -603,7 +757,19 @@ stats_quanti_tab %>%
   mykable(title = "Résumé statistique des variables quantitatives")
 ```
 
-On remarque que l'étendue de la distribution des différentes variables quantitatives est importante. Pour représenter les histogrammes des variables `surface_relle_bati` et `surface_terrain`, on décide de sélectionner les valeurs inférieures ou égales au 3ème quantile de chaque série. Pour la variable `surface_carrez_lots`, on sélectionne uniquement les biens pour lesquels cette variable est non nulle et on applique le même filtre que pour les deux autres variables.
+```{r}
+most_populated <- dat2 %>%
+  filter(pop == max(pop, na.rm = T)) %>%
+  pull(nom_commune) %>%
+  unique()
+```
+
+
+On remarque que l'étendue de la distribution des différentes variables quantitatives est importante. Notons aussi que la valeur maximale de population est 493 465 et correspond à la ville de `r most_populated` car on considère les villes de Paris, Marseille et Lyon par arrondissement. 
+
+Pour représenter les histogrammes des variables `surface_relle_bati`, `surface_terrain` et `pop` on décide de sélectionner les valeurs **strictement positives** et inférieures ou égales au 3ème quantile de chaque série. Notons que la variables `surface_terrain` comporte un grand nombre de valeurs nulles puisque l'on a affecté la valeur 0 à l'ensemble des appartements pour lequels la surface du terrain n'était pas renseignée. 
+
+Pour la variable `surface_carrez_lots`, on sélectionne uniquement les biens pour lesquels cette variable est non nulle et on applique le même filtre que pour les deux autres variables.
 
 #### Distribution 
 
@@ -617,21 +783,14 @@ for (i in 1:n_vars) {
   
   var_name <- col_quanti[i]
   
-  if (var_name == "surface_carrez_lots") {
-      df_plot <- dat_quanti %>% 
-        filter(surface_carrez_lots > 0)
-      q <- df_plot %>% 
-        pull(surface_carrez_lots) %>%
-        quantile()
-      df_plot <- df_plot %>% filter(surface_carrez_lots <= q["75%"])
-        
+  thresold <- stats_quanti[[var_name]][var_name, "Q75%"] 
+  if (thresold == 0) {
+    thresold <- stats_quanti[[var_name]][var_name, "Max"] 
   }
   
-  else {
-    thresold <- stats_quanti[[var_name]][var_name, "Q75%"] 
-    df_plot <- dat_quanti %>%
-      filter(!!sym(var_name) <= thresold)
-  }
+  df_plot <- dat_quanti %>%
+    filter(!!sym(var_name) > 0 & !!sym(var_name) <= thresold)
+  
   
   color <- colors[i]
   plot_list[[var_name]] <- make_histogram(df_plot, var_name = var_name, color = color)
@@ -664,6 +823,14 @@ plot_list$surface_carrez_lots
 
 </center>
 
+<center>
+
+```{r }
+plot_list$pop
+```
+
+</center>
+
 ### Variable cible : `valeur_fonciere`
 
 
@@ -682,9 +849,9 @@ plot_list$valeur_fonciere
 </center>
 
 
-## Analyse multivariée
+## Analyse approfondie
 
-### Valeurs abberantes (outliers)
+### Valeurs abberantes via le filtre d'Hampel
 
 La table \@ref(tab:statsquantitab) indique des disparités importantes au sein de chaque variable quantitative. L'objectif est d'identifier les valeurs aberrantes à l'aide d'une méthode statistique. On décide d'utiliser le filtre d'Hampel qui classe comme outliers les valeurs situés en dehors de l'intervalle $I$ défini comme suit :
 
@@ -726,13 +893,35 @@ outliers_freqs <- sapply(
   rename(`%` = V1)
 ```
 
-L'identification des valeurs aberrantes pour la variable `surface_carrez_lots` porte sur les biens possédant des lots. On considère ici les biens pour lesquels `surface_carrez_lots` = 0 ne sont pas des point aberrants.  
+29% de points aberrants sont identifiés par le filtre d'Hampel au regard de la variable `pop`. Il semble intéressant de visualiser la position géographique de ces points. On remarque que la majorité de ces biens sont situés dans les villes de taille importante.
+
+<center>
+
+```{r}
+outliers_pop <- dat2 %>%
+  filter(rownames(.) %in% outliers$pop) %>%
+  filter(duplicated(nom_commune) == FALSE)
+
+outliers_pop %>%
+  leaflet() %>% 
+     addTiles() %>% 
+     setView(lng = 2.80, lat = 46.80, zoom = 5.1) %>% 
+     addCircleMarkers(
+       lng = ~longitude,
+       lat = ~latitude, 
+       radius = 0, 
+       color = "red")
+```
+
+</center>
+
+L'identification des valeurs aberrantes pour la variable `surface_carrez_lots` porte sur les biens possédant des lots. On considère ici que les biens pour lesquels `surface_carrez_lots` = 0 ne sont pas des point aberrants.  
 
 ```{r}
 outliers_freqs %>% 
   arrange(desc(`%`)) %>% 
   mutate_if(is.numeric, funs(format(100 * ., big.mark = " ", scientific = F, digits = 2))) %>% 
-  mykable(title = "Proportion d'outliers par variable")
+  mykable(title = "Proportion d'outliers par variable quantitative")
 ```
 
 
@@ -776,33 +965,6 @@ target <- "valeur_fonciere"
 ```
 
 
-```{r eval=FALSE}
-plot_list <- list()
-for (mask in cat_vars) {
-  
-  df_subset <- dat_no_outliers %>%
-      dplyr::select(c(all_of(mask), all_of(target))) %>% 
-    draw_samples()
-  
-  n_levels <- df_subset %>% 
-    pull(mask) %>% 
-    unique() %>% 
-    length()
-  
-  if (n_levels <= 15) {
-    
-    plot_list[[mask]] <- distribution_per_category(df_subset,
-                                                   cat_var = mask, 
-                                                   target = target, 
-                                                   multiple = F) 
-    
-  }
-  
-}
-  
-```
-
-
 ```{r}
 target <- "valeur_fonciere"
 idxs <- outliers$valeur_fonciere %>% as.character()
@@ -829,7 +991,7 @@ for (var in cat_vars) {
 
 ::: {}
 ```{r }
-plot_list$type_local
+plot_list$degre_densite
 ```
 :::
 
@@ -852,8 +1014,25 @@ plot_list$nombre_pieces_principales2
 
 ::: {}
 
-```{r fig.width=5}
+```{r }
+plot_list$type_local
+```
+:::
+
+::::
+
+:::: {style="display: flex;"}
+
+::: {}
+```{r }
 plot_list$nombre_lots
+```
+:::
+
+::: {}
+
+```{r }
+plot_list$lot
 ```
 :::
 
@@ -911,16 +1090,16 @@ tab %>%
 ```
 
 
-**Valeurs foncières et nombres de pièces**
+**Valeurs foncières et variables à 2+ catégories**
 
-Les variables `noms_regions`, `nombre_pieces_principales2` et `nombre_lots` contenant plus de 2 catégories, on effectue un test ANOVA. L'ANOVA permet de voir si une variable numérique a des valeurs différentes en fonction de plusieurs groupes. C'est une généralisation du test de Student permettant de comparer plus de deux groupes.
+Les variables `noms_regions`, `degre_densite`, `nombre_pieces_principales2` et `nombre_lots` contenant plus de 2 catégories, on effectue un test ANOVA. L'ANOVA permet de voir si une variable numérique a des valeurs différentes en fonction de plusieurs groupes. C'est une généralisation du test de Student permettant de comparer plus de deux groupes.
 
 ```{r}
 target <- "valeur_fonciere"
 
 aov_fits <- sapply(
   
-  X = c("nom_region", "nombre_pieces_principales2", "nombre_lots"), 
+  X = c("nom_region", "degre_densite", "nombre_pieces_principales2", "nombre_lots"), 
   
   FUN = function(var) {
     fm <- paste(target, var, sep = "~") %>% as.formula()
@@ -945,7 +1124,7 @@ aov_fits %>%
   mykable(title = "Résumé des tests ANOVA")
 ```
 
-Il y a bien des différences siginificatives de valeur foncière entre biens ayant un nombre de pièces principales (resp. lots) différent et les biens venant de régions différentes. Une régression linéaire permettrait d'estimer l'effet marginal du nombre de pièces (resp. lots) sur la valeur foncière et les différences de valeur foncière entre les régions. 
+Il y a bien des différences siginificatives de valeur foncière entre biens ayant un nombre de pièces principales (resp. lots) différent, les biens venant de régions différentes et les biens situés dans des aires géographiques à degré de densité différent. Une régression linéaire permettrait d'estimer l'effet marginal du nombre de pièces (resp. lots) sur la valeur foncière et les différences de valeur foncière entre les régions. 
 
 ### Variables quantitatives & `valeur_fonciere`
 
@@ -966,9 +1145,9 @@ for (i in 1:n_vars) {
   x_var <- vars[i]
   c <- colors[i]
   
-  if (x_var == "surface_carrez_lots") {
+  if (x_var %in% c("surface_carrez_lots", "surface_terrain")) {
     tmp <- dat_no_outliers %>% 
-      filter(surface_carrez_lots > 0)
+      filter(!!sym(x_var) > 0)
   }
   else { tmp <- dat_no_outliers }
   
@@ -984,6 +1163,14 @@ for (i in 1:n_vars) {
 }
 
 ```
+
+<center>
+
+```{r }
+plot_list$pop
+```
+
+</center>
 
 :::: {style="display: flex;"}
 
@@ -1033,7 +1220,6 @@ cor_plot <- ggcorrplot::ggcorrplot(
 
 ```{r fig.width=5, fig.height=4}
 ggplotly(cor_plot)
-
 ```
 
 </center>
@@ -1084,18 +1270,19 @@ La régression comporte des variables catégorielles dont les catégories de ré
 | Variable  | Référence  |
 |---|---|
 | `nombre_pieces_principales` | 0  |
-| `nombre_lots` | 0 |
-| `nom_region`  | Île-de-France |
+| `nom_region`  | "Île-de-France" |
+| `degre_densite` | "Paris" | 
+| `lot` | 0 | 
 
 ```{r}
 x_vars <- c(
   "type_local", 
   "nombre_pieces_principales", 
-  "nombre_lots", 
   "nom_region", 
+  "degre_densite", 
   "surface_terrain",
   "surface_reelle_bati", 
-  "surface_carrez_lots"
+  "lot"
 )
 
 
@@ -1106,7 +1293,8 @@ dat_mod <- dat2 %>%
   select(all_of(x_vars), valeur_fonciere) %>%
   
   mutate(l_valeur_fonciere = log(valeur_fonciere), 
-         nom_region = relevel(nom_region, ref = "Île-de-France"))
+         nom_region = relevel(nom_region, ref = "Île-de-France"), 
+         degre_densite = relevel(degre_densite, ref = "Paris"))
 ```
 
 <center>
@@ -1140,38 +1328,7 @@ stargazer(lm1, type = "html", title = "Premier modèle")
 
 </center>
 
-On remarque que seule la catégorie `nombre_lots` = 1 apparaît dans les résultats du modèle. 
-
-```{r}
-dat_mod %>%
-  filter(!(nombre_lots %in% c(0, 1))) %>%
-  group_by(nombre_lots) %>%
-  summarise_at(
-    vars(c(surface_terrain, surface_reelle_bati, surface_carrez_lots)), 
-    mean, 
-    na.rm = T
-  ) %>%
-  mykable(title = "Moyenne des variables quantitatives selon le nombre de lots")
-```
-
-La table précédente indique que la surface du terrain est une donnée manquante pour les biens ayant au moins 2 lots. On décide de relancer un modèle de régression en enlevant la variable `surface_terrain`.
-
-```{r}
-lm2 <-update(lm1, .~. -surface_terrain) 
-```
-
-```{r eval=FALSE}
-stargazer(lm2, type = "text")
-```
-
-<center>
-
-```{r results='asis'}
-stargazer(lm1, type = "html", title = "Second modèle sans la variable surface_terrain") 
-```
-
-</center>
-
+L'ensemble des coefficients sont significatifs. Cependant, la part de variabilité du logarithme des valeurs foncières expliquée par le modèle est seulement de 18.2%. 
 
 #### Outliers & Distance de Cook
 
@@ -1187,8 +1344,10 @@ avec :
 - $\text{MSE}$ l'erreur quadratique moyenne tq $\text{MSE} = \frac{1}{n} \sum_{i=1}^n (y_i - \hat{y}_i)^2$
 - $p$ le nombre de coefficients dans le modèle de régression. 
 
+Le point $i$ est considéré comme un outlier si $D_i > 4 \times \bar{D}$, avec $\bar{D} = \frac{1}{n} \sum_{i=1}^n D_i$. 
+
 ```{r}
-cooksd <- cooks.distance(lm2)
+cooksd <- cooks.distance(lm1)
 
 cooksd_df <- data.frame(obs = 1:length(cooksd), distance = cooksd)
 frontier <- 4 * mean(cooksd, na.rm = TRUE)
@@ -1224,8 +1383,8 @@ smp_outliers <- dat_mod %>%
   filter(rownames(.) %in% c(idxs_smp, idxs_outliers)) %>%
   mutate(
     fitted = c(
-      lm2$fitted.values[idxs_outliers], 
-      lm2$fitted.values[idxs_smp]
+      lm1$fitted.values[idxs_outliers], 
+      lm1$fitted.values[idxs_smp]
     ), 
     outlier = c(
       rep("yes", n_outliers), 
@@ -1234,79 +1393,18 @@ smp_outliers <- dat_mod %>%
   ) %>% mutate(outlier = factor(outlier, levels = c("yes", "no")))
 ```
 
-<center>
-
-```{r}
-p <- smp_outliers %>% 
-  ggplot(mapping = aes(x = l_valeur_fonciere, y = fitted, color = outlier)) +
-    geom_point(alpha = .5) +
-    scale_x_continuous(limits = c(min(smp_outliers$l_valeur_fonciere),
-                                  max(smp_outliers$l_valeur_fonciere))) + 
-    scale_y_continuous(limits = c(min(smp_outliers$fitted), 
-                                  max(smp_outliers$fitted))) + 
-    geom_abline(intercept = 0, slope = 1, linetype = "dotted") +
-    labs(x = "Observé", y = "Estimé", title = "Logarithme des valeurs foncières")
-
-ggplotly(p) %>%
-  layout(legend = list(orientation = "h", 
-                       xanchor = "center", 
-                       x = .5))
-```
-
-</center>
-
-On décide alors d'estimer un troisième modèle en supprimant les outliers identifiés par la méthode de la distance de Cook.
-
-#### Modèle sans outliers
-
-```{r}
-dat_mod_no_outliers <- dat_mod %>%
-  filter(rownames(.) %in% idxs)
-```
-
-```{r}
-fm2 <- lm2$call$formula
-lm3 <- lm(formula = fm2, data = dat_mod_no_outliers)
-```
-
-
-```{r eval=FALSE}
-stargazer(lm3, type = "text")
-```
+Une première visualisation consiste à représenter valeurs observées vs valeurs estimées pour `l_valeur_fonciere` et de séparer les points aberrants des points non abberants. En comparant les résultats à la droite d'équation $y=x$ on comprend que la qualité d'ajustement du premier modèle est faible. 
 
 <center>
 
-```{r results='asis'}
-stargazer(lm3, type = "html", title = "Second modèle sans outliers") 
+```{r fig.width=5}
+title <- "Logarithme des valeurs foncières"
+smp_outliers %>%
+  rename(actual = l_valeur_fonciere) %>%
+  regression_plot(title=title, by = "outlier")
 ```
 
 </center>
-
-<center>
-
-```{r}
-N <- 10000
-title <- paste0("Logarithme des valeurs foncières après suppression des outliers (N=", N, ")")
-
-p <- data.frame(
-  actual = dat_mod_no_outliers$l_valeur_fonciere, 
-  fitted = lm3$fitted.values
-) %>%
-  draw_samples(n_samples = N) %>%
-  ggplot() +
-    geom_point(mapping = aes(x = actual, y = fitted), 
-               alpha = .5, 
-               color = "grey") +
-    geom_abline(linetype = "dotted") +
-    labs(x = "Observé", y = "Estimé", title = title) 
-  
-ggplotly(p)
-```
-
-
-</center>
-
-La part de la variance expliquée par le modèle passe de 20 à 30% lorsque l'on supprime les points aberrants. 
 
 #### Analyse des outliers
 
@@ -1316,8 +1414,9 @@ plot_list <- sapply(
   
   X = c("type_local",
         "nombre_pieces_principales",
-        "nombre_lots",
-        "nom_region"), 
+        "lot",
+        "nom_region", 
+        "degre_densite"), 
   
   FUN = barplot_per_category, 
   df = smp_outliers, 
@@ -1345,7 +1444,7 @@ plot_list$nombre_pieces_principales
 ::: {}
 
 ```{r }
-plot_list$nombre_lots
+plot_list$type_local
 ```
 :::
 
@@ -1362,13 +1461,20 @@ plot_list$type_local
 <center>
 
 ```{r fig.width=5, fig.height=4.5}
-plot_list$nom_region %>%
-  layout(legend = list(orientation = "h", y = -.8))
+plot_list$nom_region
 ```
 
 </center>
 
-On remarque d'importantes disparités entre les régions en termes de répartition des outliers. Il pourrait être judicieux d'identifier des zones géographiques proches et d'estimer un modèle par zone. 
+<center>
+
+```{r}
+plot_list$degre_densite
+```
+
+</center>
+
+On remarque d'importantes disparités entre les régions en termes de répartition des outliers. Une piste intéressante pourrait être d'identifier des zones géographiques proches et d'estimer un modèle par zone. 
 
 On représente ensuite la distribution des variables quantitatives `surface_relle_bati`, `surface_carrez_lots` et `l_valeur_fonciere` selon que l'observation soit une valeur aberrante ou non. 
 
@@ -1377,7 +1483,7 @@ plot_list <- sapply(
   
   X = c("l_valeur_fonciere", 
         "surface_reelle_bati", 
-        "surface_carrez_lots"), 
+        "surface_terrain"), 
   
   FUN = distribution_per_category, 
   df = smp_outliers, 
@@ -1408,7 +1514,7 @@ plot_list$surface_reelle_bati
 ::: {}
 
 ```{r }
-plot_list$surface_carrez_lots
+plot_list$surface_terrain
 ```
 :::
 
@@ -1451,6 +1557,221 @@ map_outliers
 ```
 
 </center>
+
+Une dichotomie assez nette apparaît entre les biens situés proches des grande villes - qui ne sont pas considérés comme outliers au sens de la distance de Cook - et ceux situés dans des zones + réculées. Un axe d'amélioration serait d'effectuer un modèle de régression par région / par degré de densité. 
+
+#### Modèle sans outlier
+
+On décide d'estimer un troisième modèle en supprimant les outliers identifiés par la méthode de la distance de Cook.
+
+```{r}
+dat_mod_no_outliers <- dat_mod %>%
+  filter(rownames(.) %in% idxs)
+```
+
+```{r}
+lm1_no_outliers <- lm(formula = fm, data = dat_mod_no_outliers)
+```
+
+
+```{r eval=FALSE}
+stargazer(lm1_no_outliers, type = "text")
+```
+
+<center>
+
+```{r results='asis'}
+stargazer(lm1_no_outliers, type = "html", title = "Modèle sans outlier") 
+```
+
+</center>
+
+<center>
+
+```{r fig.width=5}
+N <- 10000
+title <- paste0("Logarithme des valeurs foncières après suppression des outliers (N=", N, ")")
+
+
+df_plot <- data.frame(
+  actual = dat_mod_no_outliers$l_valeur_fonciere, 
+  fitted = lm1_no_outliers$fitted.values
+) %>%
+  draw_samples(n_samples = N)
+  
+regression_plot(df_plot, title) 
+```
+
+</center>
+
+La part de la variance expliquée par le modèle passe de 18.2% à 25.6% lorsque l'on supprime les points aberrants. 
+
+#### Modèle sur les outliers
+
+La dernière étape de diagnostic du premier modèle est de relancer l'estimation uniquement sur les biens identifiés comme outliers par la distance de Cook. 
+
+```{r}
+dat_mod_outliers <- dat_mod %>%
+  filter(rownames(.) %in% idxs_outliers)
+```
+
+```{r}
+lm1_outliers <- lm(formula = fm, data = dat_mod_outliers)
+```
+
+
+```{r eval=FALSE}
+stargazer(lm1_outliers, type = "text")
+```
+
+<center>
+
+```{r results='asis'}
+stargazer(lm1_outliers, type = "html", title = "Modèle estimé sur les outliers") 
+```
+
+</center>
+
+La qualité d'ajustement est bien plus élevée pour le modèle estimé uniquement sur les points aberrants. Plusieurs raisons pourraient expliquer ce résultat :
+
+- le faible nombre d'outliers (`r length(idxs_outliers)`)
+- les coefficients estimés sont représentatifs caractéristiques des points aberrants
+
+On peut en déduire que le modèle de régression appliqué à l'ensemble des régions ne semble pas être la meilleure stratégie. 
+
+```{r fig.width=5}
+title <- "Logarithme des valeurs foncières sur les points aberrants"
+
+df_plot <- data.frame(
+  actual = dat_mod_outliers$l_valeur_fonciere, 
+  fitted = lm1_outliers$fitted.values
+)
+regression_plot(df_plot, title) 
+```
+
+
+### OLS par région 
+
+On se propose d'effectuer une régression par région afin d'estimer les effets des différentes variables explicatives pour chaque région. On pourra par la suite regrouper les régions partageant des dynamiques similaires. 
+
+On travaille sur l'ensemble des régions à l'exception des territoires d'outre-mer (Guadeloupe, Guyane,La Réunion, Martinique).  
+
+Comme précédemment, on utilise la distance de Cook pour identifier les outliers dans les régressions de chaque région et on estime une régression sur le jeu de données diminué de ces outliers ainsi qu'une troisième régression sur les outliers. 
+
+```{r}
+x_vars2 <- setdiff(x_vars, "nom_region")
+
+fm2 <- paste(y_var, 
+            paste(x_vars2, collapse = "+"), 
+            sep = "~") %>%
+  as.formula()
+
+regions <- levels(dat_mod$nom_region)
+```
+
+```{r eval=FALSE}
+pb <- txtProgressBar(min = 0, 
+                     max = length(regions), 
+                     style = 3,    
+                     width = 50,
+                     char = "=")
+
+lm_per_region <- list()
+
+for (i in 1:length(regions)) {
+  
+  region <- regions[i]
+  tmp <- dat_mod %>% filter(nom_region == region)
+  lm_per_region[[region]] <- lm_process(tmp, fm2) 
+  
+  setTxtProgressBar(pb, i)
+  
+}
+
+save(lm_per_region, file = paste0(BACKUP_DIR, "models/lm_per_region.RData"))
+```
+
+```{r}
+load(paste0(BACKUP_DIR, "models/lm_per_region.RData"))
+```
+
+#### Tables de régression  
+
+```{r results='asis'}
+for (region in regions) {
+  
+  results <- lm_per_region[[region]]
+  models <- list(results$lm_all, 
+                 results$lm_no_outliers,
+                 results$lm_outliers)
+  
+  stargazer(models, 
+            type = "html", 
+            title = paste("Régression linéaire pour", region), 
+            column.labels = c("All", "No outlier", "Outliers"))
+}
+
+```
+ 
+
+#### Métriques par région 
+
+```{r}
+metrics <- sapply(
+  
+  X = c("lm_all", "lm_no_outliers", "lm_outliers"), 
+  
+  FUN = function(lm_type) { 
+    
+    tab <- sapply(
+  
+      X = lm_per_region, 
+      
+      FUN = function(lm) {
+        
+        lm_ <- lm[[lm_type]] 
+        results <- get_model_rsq(lm_) 
+        
+        data.frame("rsq" = round(100 * results$rsq, 2), 
+                   "adj_rsq" = round(100 * results$rsq_adj, 2))
+        
+      }, 
+    
+      simplify = T
+      
+    ) %>% t() 
+    
+    colnames(tab) <- c("R² (%)", "Adj. R² (%)") 
+    
+    return (tab)
+    
+  }, 
+  
+  simplify = F, 
+  USE.NAMES = T
+  
+)
+```
+
+**Jeu de données complet**
+
+```{r}
+datatable(metrics$lm_all)
+```
+
+**Sans outlier** 
+
+```{r}
+datatable(metrics$lm_no_outliers)
+```
+
+**Outliers**
+
+```{r}
+datatable(metrics$lm_outliers) 
+```
+
+
 
 
 

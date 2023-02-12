@@ -71,7 +71,7 @@ make_structure_table <- function(df, df_nan = NULL) {
 
 # Plots -------------------------------------------------------------------
 
-make_pct_countplot <- function(df, var_name, color = "lightblue"){
+make_pct_countplot <- function(df, var_name, color = "lightblue", plotly = F){
   "Description. Return % countplot for a categorical variable."
   
   d <- dat_cat %>% 
@@ -80,21 +80,41 @@ make_pct_countplot <- function(df, var_name, color = "lightblue"){
     mutate() %>% 
     mutate(pct = round(100 * freq / sum(freq), 2)) %>% 
     mutate(!!var_name := !!sym(var_name) %>% as.factor()) %>% 
-    as.data.frame()
+    as.data.frame() %>% 
+    mutate(!!var_name := !!sym(var_name) %>%
+             as.character() %>%
+             replace_na(replace = "NA") %>%
+             as.factor())
   
-  d[[var_name]] <- fct_reorder(d[[var_name]], d$pct, .desc = T)
+  d[[var_name]] <- fct_reorder(d[[var_name]], d %>% pull("pct"), .desc = T)
   
-  plot_ly(data = d) %>%
-    add_trace(
-      x = ~.data[[var_name]], 
-      y = ~.data[["pct"]], 
-      marker = list(color = color), 
-      type = "bar", 
-      showlegend = F) %>% 
-    
-    layout(title = var_name, 
-           xaxis = list(title = "", tickangle = -45), 
-           yaxis = list(title = "%"))
+  if (plotly == F) {
+    p <- d %>% 
+      ggplot() +
+      geom_bar(mapping = aes_string(x = var_name, 
+                                    y = "pct", 
+                                    fill = "pct"), 
+               stat = "identity") +
+      scale_fill_gradient(low = "lightblue", high = "darkblue") +
+      labs(x = "", y = "%",  title = var_name) +
+      theme(axis.text.x = element_text(angle = -90), legend.position = "none") 
+  }
+  
+  else {
+    p <- plot_ly(data = d) %>%
+      add_trace(
+        x = ~.data[[var_name]], 
+        y = ~.data[["pct"]], 
+        marker = list(color = color), 
+        type = "bar", 
+        showlegend = F) %>% 
+      
+      layout(title = var_name, 
+             xaxis = list(title = "", tickangle = -45), 
+             yaxis = list(title = "%"))
+  }
+  
+  return (p)
   
 }
 
@@ -102,7 +122,8 @@ make_histogram <- function(
     df, 
     var_name, 
     density = T, 
-    color = "lightblue"){
+    color = "lightblue", 
+    plotly = F){
   "Description. Return histogram plot with optional kernel density line."
   
   p <- df %>% 
@@ -125,11 +146,13 @@ make_histogram <- function(
       scale_x_continuous(labels = unit_format(unit = "K", scale = 1e-3)) 
   }
   
-  ggplotly(p)
+  if (plotly) { p <- ggplotly(p) }
+  
+  return (p)
   
 }
 
-make_scatter_plot <- function(df, x_var, y_var, color = "orange"){
+make_scatter_plot <- function(df, x_var, y_var, color = "orange", plotly = F){
   "Description. Make plotly scatterplot and compute Pearson correlation coef."
   
   corr <- cor(x = df %>% pull(x_var), 
@@ -148,11 +171,13 @@ make_scatter_plot <- function(df, x_var, y_var, color = "orange"){
       scale_y_continuous(labels = unit_format(unit = "K", scale = 1e-3)) 
   }
   
-  ggplotly(p)
+  if (plotly) { p <- ggplotly(p) }
+  
+  return (p)
   
 }
 
-distribution_per_category <- function(df, by, target,  multiple = F) {
+distribution_per_category <- function(df, by, target,  multiple = F, plotly = F) {
   "Description. Draw quantitative variable distribution per category."
   
   if (multiple == F) {
@@ -164,7 +189,8 @@ distribution_per_category <- function(df, by, target,  multiple = F) {
                                   color = by, 
                                   fill = by)) +
       geom_histogram(bins = 30, alpha = .4) +
-      xlab("")
+      xlab("") +
+      theme(legend.position = "bottom")
   }
   
   else {
@@ -174,7 +200,8 @@ distribution_per_category <- function(df, by, target,  multiple = F) {
     p <- df %>% 
       ggplot(mapping = aes_string(x = target, y = "..density..", color = by)) +
       geom_histogram(bins = 30, fill = "white") +
-      facet_wrap(wrapper)
+      facet_wrap(wrapper) +
+      theme(legend.position = "none")
     
   }
   
@@ -185,20 +212,24 @@ distribution_per_category <- function(df, by, target,  multiple = F) {
   
   p <- p + ggtitle(label = paste(target, "vs", by))
   
-  if (show_legend) {
-    p <-  ggplotly(p) %>% 
-      layout(legend = list(orientation = "h", title = ""))
-  }
-  
-  else {
-    p <- ggplotly(p) %>% layout(showlegend = F) 
+  if (plotly) {
+    
+    if (show_legend) {
+      p <-  ggplotly(p) %>% 
+        layout(legend = list(orientation = "h", title = ""))
+    }
+    
+    else {
+      p <- ggplotly(p) %>% layout(showlegend = F) 
+    }
+    
   }
   
   return(p)
   
 }
 
-boxplot_per_category <- function(df, target, by) {
+boxplot_per_category <- function(df, target, by, plotly = F) {
   "Description. Boxplot of target variable depending on category."
   
   p <- df %>%
@@ -217,13 +248,18 @@ boxplot_per_category <- function(df, target, by) {
     labs(title = paste(target, "selon", by), 
          x = "", 
          y = "") +
-    theme(axis.text.x = element_text(angle = -90))
+    theme(axis.text.x = element_text(angle = -90), 
+          legend.position = "none")
   
-  ggplotly(p) %>% layout(showlegend = F)
+  if (plotly) {
+    p <- ggplotly(p) %>% layout(showlegend = F)
+  } 
+  
+  return (p)
   
 }
 
-barplot_per_category <- function(df, cat_var1, cat_var2) {
+barplot_per_category <- function(df, cat_var1, cat_var2, plotly = F) {
   "Description. Categorical variable countplot per category of other categorical variable."
   
   p <- df %>%
@@ -237,10 +273,41 @@ barplot_per_category <- function(df, cat_var1, cat_var2) {
     labs(x = "", title = cat_var1) +
     theme(axis.text.x = element_text(angle = -90))
   
-  ggplotly(p) %>%
-    layout(legend = list(orientation = "h", y = -.5))
+  if (plotly) {
+    p <- ggplotly(p) %>%
+      layout(legend = list(orientation = "h", y = -.5))
+  } 
+  
+  return (p)
   
 }
+
+regression_plot <- function(df, title, by = NULL) {
+  "Description. 
+  Return a point cloud of actual vs fitted values with y=x line."
+  
+  min_ <- min(min(df$actual, na.rm = T), min(df$fitted, na.rm = T))
+  max_ <- max(max(df$actual, na.rm = T), max(df$fitted, na.rm = T))
+  rsq <- round(100 * cor(df$actual, df$fitted, use = "complete.obs")^2, 2) 
+  
+  p <- df %>% ggplot() 
+  
+  if (is_null(by)) {
+    p <- p + 
+      geom_point(mapping = aes(x = actual, y = fitted), alpha = .5, color = "grey")
+  }
+  else {
+    p <- p + 
+      geom_point(mapping = aes_string(x = "actual", y = "fitted", color = by), alpha = .5)
+  }
+  
+  p +
+    geom_abline(linetype = "dotted") +
+    scale_x_continuous(limits = c(min_, max_)) +
+    scale_y_continuous(limits =c(min_, max_)) +
+    labs(x = "Observé", y = "Estimé", title = paste0(title, " | R²=", rsq, "%")) 
+}
+
 
 
 # Data handling  ------------------------------------------------------------------
@@ -293,5 +360,41 @@ hampel_filter <- function(x) {
   outliers <- which(x < med_x - bound | x > med_x + bound)
   
   return(outliers)
+  
+}
+
+lm_process <- function(df, fm) {
+  "Description. 
+  Fit linear regression on dataframe, identify outliers and fit lr on data without outlier and lr only on outliers."
+  
+  lm_ <- lm(formula = fm, data = df) 
+  
+  cooksd_ <- cooks.distance(lm_)
+  outliers_ <- which(cooksd_ > 4 * mean(cooksd_, na.rm = T))
+  
+  lm_no_outliers_ <- lm(formula = fm, 
+                        data = df %>% filter(!(rownames(.) %in% outliers_))) 
+  lm_outliers_ <- lm(formula = fm, 
+                     data = df %>% filter(rownames(.) %in% outliers_))
+  
+  results <- list(
+    "lm_all" = lm_, 
+    "lm_no_outliers" = lm_no_outliers_, 
+    "lm_outliers" = lm_outliers_, 
+    "outlier_idxs" = outliers_
+  )
+  
+  return (results)
+  
+}
+
+get_model_rsq <- function(lm) {
+  "Description. Extract R² and adjusted R² from regression summary."
+  
+  summary_ <- summary(lm) 
+  results <- list("rsq" = summary_$r.squared, 
+                  "rsq_adj" = summary_$adj.r.squared)
+  
+  return (results)
   
 }
