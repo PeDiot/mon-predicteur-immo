@@ -33,7 +33,7 @@ knitr::opts_chunk$set(echo = FALSE,
 ```
 
 ```{r eval=FALSE}
-root <- "C:/Users/pemma/OneDrive - GENES/Ensae/Business Data Challenge/business-data-challenge/code/exploration"
+root <- "C:/Users/flore/OneDrive/Bureau/2023/Drive/Business Data Challenge"
 setwd(root)
 ```
 
@@ -68,6 +68,10 @@ library(plotly)
 library(leaflet)
 library(RColorBrewer)
 library(scales)
+
+library(ggplot2)
+library(car)
+
 ```
 
 ```{r}
@@ -1771,8 +1775,75 @@ datatable(metrics$lm_no_outliers)
 datatable(metrics$lm_outliers) 
 ```
 
+**qqline plot, qqnorm & scatterplot** 
+
+```{r}
+library(dplyr)
+setwd('C:/Users/flore/OneDrive/Bureau/2023/Drive/Business Data Challenge')
+data <- read.table(unz("dbf21.zip", "dbf21/datadvf2021.csv"), nrows=100000, header=T, quote="\"", sep=",")
+data_num <- select_if(data, is.numeric)       
+
+install.packages("gcluc", dependencies=TRUE, repos='http://cran.rstudio.com/')
+library(gclus)
+dta <- data_num # get data
+dta.r <- abs(cor(dta)) # get correlations
+# reorder variables so those with highest correlation
+# are closest to the diagonal
+dta.o <- order.single(dta.r)
+cpairs(dta, dta.o, gap=.5, main="Variables Ordered and Colored by Correlation" )
+
+# High Density Scatterplot with Binning
+library(hexbin)
+bin<-hexbin(data_num$surface_terrain, data_num$valeur_fonciere, xbins=50)
+plot(bin, main="Hexagonal Binning")
+
+```
+
+**Residuals Analysis - Flo**
+
+```{Residuals Analysis Flo}
+# Following https://rpubs.com/iabrady/residual-analysis
+
+d <- data_num
+fit <- lm(valeur_fonciere  ~ nombre_pieces_principales + numero_disposition + valeur_fonciere + nombre_lots + surface_reelle_bati, data = d) # fit the model
+d$predicted <- predict(fit)   # Save the predicted values
+d$residuals <- residuals(fit) # Save the residual values
+ggplot(d, aes(x = wt, y = mpg)) +
+  geom_smooth(method = "lm", se = FALSE, color = "lightgrey") +       
+  geom_segment(aes(xend = wt, yend = predicted), alpha = .2) +      # peut se delete 
+  geom_point(aes(color = abs(residuals), size = abs(residuals))) +  # size of the points
+  scale_color_continuous(low = "green", high = "red") +             # colour of the points mapped to residual size - green smaller, red larger
+  guides(color = FALSE, size = FALSE) +                             # Size legend removed
+  geom_point(aes(y = predicted), shape = 1) +
+  theme_bw()
+
+# plot(fit, which=1, col=c("blue")) # Residuals vs Fitted Plot
+# plot(fit, which=2, col=c("red"))  # Q-Q Plot
+# plot(fit, which=3, col=c("blue"))  # Scale-Location Plot
+plot(fit, which=5, col=c("blue"))  
+# Leverage refers to the extent to which the coefficients in the regression model would change if a particular observation was removed from the dataset.
+
+```
+
+
+**Hadi's measure**
+
+```{Hadi's measure }
+install.packages('olsrr')
+library(olsrr)
+
+model <- lm(valeur_fonciere  ~ nombre_pieces_principales + numero_disposition + valeur_fonciere + nombre_lots + surface_reelle_bati, data = data_num) # fit the model
+
+ols_plot_hadi(model)
+
+```
 
 
 
+**Residuals x Geographical reg**
+
+```{Residuals / geo} 
 
 
+
+```
