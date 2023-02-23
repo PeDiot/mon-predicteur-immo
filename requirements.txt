@@ -1,0 +1,1 @@
+# do in terminal:  conda list -e > requirements.txt
