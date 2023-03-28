@@ -29,7 +29,7 @@ import sys
 sys.path.append("../")
 
 from lib.preprocessing import dvf, geo
-from lib.utils import get_unique_entries, add_date_components
+from lib.preprocessing.utils import get_unique_entries, add_date_components
 
 import pandas as pd 
 import numpy as np 

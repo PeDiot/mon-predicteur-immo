@@ -37,6 +37,21 @@ YEARS = [
 
 DVF_PARCELLE_KEY = "id_parcelle"
 
+DVF_SELECTED_VARS = [
+    "id_mutation",
+    "date_mutation",
+    "valeur_fonciere",
+    "nom_commune",
+    "surface_reelle_bati",
+    "nombre_pieces_principales",
+    "surface_terrain",
+    "dependance",
+    "annee",
+    "trimestre",
+    "mois",
+    "jour" 
+]
+
 # BNB enums
 
 REL_BATIMENT_GROUPE_PARCELLE = [
