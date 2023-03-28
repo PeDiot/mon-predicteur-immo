@@ -1,3 +1,5 @@
+# DVF enums
+
 CITIES = [
     "Paris", 
     "Marseille", 
@@ -32,6 +34,10 @@ YEARS = [
     2021, 
     2022
 ]
+
+DVF_PARCELLE_KEY = "id_parcelle"
+
+# BNB enums
 
 REL_BATIMENT_GROUPE_PARCELLE = [
     "batiment_groupe_id", 
@@ -121,3 +127,72 @@ BATIMENT_GROUPE_RNC = [
     "nb_log",
     "nb_lot_tertiaire"
 ]
+
+VARS_WITH_LIST_VALUES = {
+    "l_etat": ["En projet", "En construction", "En service"],
+    "baie_orientation": [
+        "indetermine",
+        "nord",
+        "ouest",
+        "est",
+        "horizontale",
+        "est ou ouest",
+        "sud", 
+    ], 
+    "enr": [
+        "solaire photovoltaique", 
+        "solaire thermique (chauffage)"
+        "solaire thermique (ecs)", 
+        "solaire thermique (ecs+chauffage)"
+    ]
+}
+
+BNB_SELECTED_VARS = [
+    "parcelle_id",
+    "code_iris",
+    "periode_construction",
+    "periode_construction_max",
+    "hauteur_mean",
+    "altitude_sol_mean",
+    "conso_ener_mean",
+    "estim_ges_mean",
+    "conso_ener_std",
+    "estim_ges_std",
+    "conso_ener_min",
+    "estim_ges_min",
+    "conso_ener_max",
+    "estim_ges_max",
+    "ratio_ges_conso",
+    "enr_solaire_photovoltaique",
+    "enr_solaire_thermique_(chauffage)solaire_thermique_(ecs)",
+    "enr_solaire_thermique_(ecs+chauffage)",
+    "baie_u",
+    "mur_u_ext", 
+    "pb_u",
+    "ph_u",
+    "mur_pos_isol_ext",
+    "prc_s_vitree_ext",
+    "presence_balcon",
+    "presence_climatisation",
+    "baie_orientation_indetermine",
+    "baie_orientation_nord",
+    "baie_orientation_ouest",
+    "baie_orientation_est",
+    "baie_orientation_horizontale",
+    "baie_orientation_est_ou_ouest",
+    "baie_orientation_sud", 
+    "distance_batiment_historique_plus_proche",
+    "nom_batiment_historique_plus_proche",
+    "qpv", 
+    "nb_lot_garpark",
+    "nb_lot_tot",
+    "nb_log",
+    "nb_lot_tertiaire",
+    "l_etat_en_projet",
+    "l_etat_en_construction",
+    "l_etat_en_service",
+    "alea_argiles",
+    "alea_radon"
+]
+
+BNB_PARCELLE_KEY = "parcelle_id"
