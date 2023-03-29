@@ -1783,19 +1783,19 @@ setwd('C:/Users/flore/OneDrive/Bureau/2023/Drive/Business Data Challenge')
 data <- read.table(unz("dbf21.zip", "dbf21/datadvf2021.csv"), nrows=100000, header=T, quote="\"", sep=",")
 data_num <- select_if(data, is.numeric)       
 
-install.packages("gcluc", dependencies=TRUE, repos='http://cran.rstudio.com/')
-library(gclus)
-dta <- data_num # get data
-dta.r <- abs(cor(dta)) # get correlations
-# reorder variables so those with highest correlation
-# are closest to the diagonal
-dta.o <- order.single(dta.r)
-cpairs(dta, dta.o, gap=.5, main="Variables Ordered and Colored by Correlation" )
+# install.packages("gcluc", dependencies=TRUE, repos='http://cran.rstudio.com/')
+# library(gclus)
+# dta <- data_num # get data
+# dta.r <- abs(cor(dta)) # get correlations
+# # reorder variables so those with highest correlation
+# # are closest to the diagonal
+# dta.o <- order.single(dta.r)
+# cpairs(dta, dta.o, gap=.5, main="Variables Ordered and Colored by Correlation" )
 
 # High Density Scatterplot with Binning
-library(hexbin)
-bin<-hexbin(data_num$surface_terrain, data_num$valeur_fonciere, xbins=50)
-plot(bin, main="Hexagonal Binning")
+# library(hexbin)
+# bin<-hexbin(data_num$surface_terrain, data_num$valeur_fonciere, xbins=50)
+# plot(bin, main="Hexagonal Binning")
 
 ```
 
@@ -1834,7 +1834,7 @@ library(olsrr)
 
 model <- lm(valeur_fonciere  ~ nombre_pieces_principales + numero_disposition + valeur_fonciere + nombre_lots + surface_reelle_bati, data = data_num) # fit the model
 
-ols_plot_hadi(model)
+ols_plot_hadi(model, print_plot = TRUE)
 
 ```
 
@@ -1843,7 +1843,6 @@ ols_plot_hadi(model)
 **Residuals x Geographical reg**
 
 ```{Residuals / geo} 
-
 
 
 ```

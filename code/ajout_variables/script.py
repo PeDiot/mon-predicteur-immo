@@ -1,66 +1,60 @@
 import pandas as pd 
-from pandas import DataFrame
-import zipfile
 import numpy as np 
-import os 
+import zipfile
+import os
+import matplotlib.pyplot as plt
+import geopy.distance
+from lib.preprocessing import dvf
+import zipfile
+pd.set_option("display.max_columns", None)
+import geopy.distance
+
+path = r'C:\Users\flore\OneDrive\Bureau\2023\Drive\_Projects\Business Data Challenge'
+
+df_bpe = pd.read_csv(path+'\\bpe.csv')
+df_transport = pd.read_csv(path + '\\TransportIDF.csv')
+df_espaces_verts = pd.read_csv(path + '\\espaces_verts_IDF.csv')
+
+zf = zipfile.ZipFile(path + '\\dvf+.zip')
+df_dvf = pd.read_csv(zf.open('dvf+/Paris_flats.csv'))
 
 
-def open_zip_in_folder(zip_folder_path, inner_zip_filename):
-    with zipfile.ZipFile(zip_folder_path, 'r') as zip_folder:
-        with zip_folder.open(inner_zip_filename, 'r') as inner_zip:
-            inner_zip_file = zipfile.ZipFile(inner_zip)
-            filename = inner_zip_file.namelist()[0]
-            chunks = pd.read_csv(inner_zip_file.open(filename), chunksize=10000)
-            df = pd.concat(chunks)
+# traitement code iris
+df_dvf['code_iris'] # 751031102
+df_bpe['DCIRIS']    # 956070113
 
-zip_folder_path = 'C:/Users/flore/OneDrive/Bureau/2023/Drive/_Projects/Business Data Challenge/BaseNatBat.zip'
-inner_zip_filename = 'batiment_groupe.zip'
-temp = open_zip_in_folder(zip_folder_path, inner_zip_filename)
-print(temp)
+type(df_dvf['code_iris'][0])
+type(df_bpe['DCIRIS'][0])
 
+df_bpe['DCIRIS'] = df_bpe['DCIRIS'].str.replace(r'[a-zA-Z]', '', regex=True)
+df_bpe.shape
 
-            with zipfile.ZipFile(inner_zip, 'r') as inner_zip_file:
-                # do something with the contents of the inner zip file
-                # for example, print the names of all files in the inner zip:
-                filename = inner_zip_file.namelist()[0]
+df_dvf['code_iris'] = df_dvf['code_iris'].astype(float)
+df_bpe['DCIRIS'] = df_bpe['DCIRIS'].astype(float)
 
-                chunks = pd.read_csv(inner_zip_file.open(filename), chunksize=10000)
-                df = pd.concat(chunks)
-    return df
+df_bpe.groupby('DCIRIS').sum() # on évite tout doublons sur les code IRIS
 
+# création de la variable annnée 
+df_bpe['AN'] = df_bpe['AN'].astype(str)
+df_dvf['annee'] = df_dvf['date_mutation'].str[:4]
 
+type(df_dvf['annee'][0])
+type(df_bpe['AN'][0])
 
-vars = {
-    'batiment_groupe': ['batiment_groupe_id', 'code_iris'],
-    'reel_batiment_groupe_parcelle' : ['batiment_groupe_id', 'parcelle_id'],
-    'batiment_groupe_argile' : ['batiment_groupe_id','alea'],
-    'batiment_groupe_bdtopo_bat' : ['batiment_groupe_id', 'l_etat','hauteur_mean', 'altitude_sol_mean'],
-    'batiment_groupe_dpe' : ['batinement_groupe_id',
-    'nb_classe_ener_a', 'nb_classe_ener_b', 'nb_classe_ener_c', 'nb_classe_ener_d', 'nb_classe_ener_e', 
-    'nb_classe_ener_f', 'nb_classe_ener_g', 'nb_classe_ener_nc', 'nb_classe_ges_a', 'nb_classe_ges_b', 
-    'nb_classe_ges_c', 'nb_classe_ges_d', 'nb_classe_ges_e', 'nb_classe_ges_f', 'nb_classe_ges_g', 'nb_classe_ges_nc',
-    'conso_ener_mean', 'estim_ges_mean', 'conso_ener_std', 'estim_ges_std', 'conso_ener_min', 'estim_ges_min', 'conso_ener_max',' estim_ges_max'
-    ],
-    'batiment_groupe_dpe_loctype' : ['baie_orientation', 'baie_type_vitrage', 'baie_u', 'ch_solaire', 'ch_type_ener_corr',
-                                     'enr', 'mur_pos_isol_ext', 'mur_u_ext', 'pb_u', 'periode_construction', 'prc_s_vitree_ext',
-                                     'periode_construction', 'ph_pos_isol', 'ph_u', 'presence_balcon', 'presence_climatisation'
-                                     'type_batiment', 'type_ventilation', 'ratio_ges_conso'], 
-    'batiment_groupe_merimee' : ['batiment_groupe_id', 'distance_batiment_historique_plus_proche', 'nom_batiment_historique_plus_proche'], 
-    'batiment_groupe_qpv' : ['batiment_groupe_id', 'nom_quartier'], 
-    'batiment_groupe_radon' : ['batiment_groupe_id', 'alea'], 
-    'batiment_groupe_rnc' : ['batiment_groupe_id', 'periode_construction_max', 'l_annee_construction', 'nb_lot_garpark', 'nb_lot_tot','nb_log','nb_lot_tertiaire'], 
-}
+type(df_dvf['code_iris'][0])
+type(df_bpe['DCIRIS'][0])
+
+df_merged_bpe2 = pd.merge(df_dvf, df_bpe, left_on=['annee', 'code_iris'], right_on=['AN', 'DCIRIS'], how='left')
+# prb d'allocation de mémoire 
+
+n = df_dvf.shape[0]
+m = df_merged_bpe2.shape[0]
+
+print(f'on a {n} lignes dans df_dvf et {m} lignes dans df_merged_bpe soit {diff} lignes de différence')
+
+# count nb of NaN per column
+nb_nan = df_merged_bpe.isna().sum() / df_merged_bpe.shape[0]
+nb_nan = nb_nan.to_frame()
+nb_nan.sort_values(by=0, ascending=False) # 43% de NaN sur les variables ajoutées
 
 
-# baie_u = coefficient d'isolation thermique d'une baie vitrée 
-
-list_variables_batiment_groupe_bdtopo_bat = [
-
-
-]
-
-
-# filtre
-df = df[list_variables]
-df.head()
-df.save()

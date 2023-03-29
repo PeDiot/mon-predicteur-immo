@@ -1,19 +1,24 @@
 import numpy as np
+import pandas as pd
 import os 
-os.chdir('C:/Users/flore/OneDrive/Bureau/2023/Drive/_Projects/Business Data Challenge')
 from lib.preprocessing import dvf
 import matplotlib.pyplot as plt 
 from typing import Optional
 from IPython.display import display
 import re
+import seaborn as sns
 
+# TO DO: 
+# revoir les filtres sur valeur foncière ! 
 
 pd.set_option("display.max_columns", None)
+os.chdir('C:/Users/flore/OneDrive/Bureau/2023/Drive/_Projects/Business Data Challenge')
 
 # DATA
 zf = 'C:/Users/flore/OneDrive/Bureau/2023/Drive/_Projects/Business Data Challenge/dvf_cleaned.zip'
 df_flats = dvf.concat_datasets_per_year(zf, geo_area="Lyon", property_type="flats")
 df_houses = dvf.concat_datasets_per_year(zf, geo_area="Lyon", property_type="houses")
+
 
 df_flats.shape
 df_houses.shape
@@ -44,6 +49,11 @@ df2_flats.describe()
 df2_houses.describe()
 
 ## nb de pièces principales 
+
+df2_flats.nombre_pieces_principales.value_counts().hist()
+plt.show()
+df2_houses.nombre_pieces_principales.value_counts().hist()
+plt.show()
 
 df2_flats = df2_flats.loc[
     (df2_flats.nombre_pieces_principales > 0) &
@@ -153,8 +163,8 @@ sns.histplot(data=df3_flats, x="surface_terrain", bins=100, ax=axes[0])
 sns.boxplot(data=df3_flats, x="surface_terrain", ax=axes[1]);  
 plt.show()
 
-df3_flats.loc[df3_flats.surface_terrain == 0].shape[0] / df3_flats.shape[0]
-# 99% de valeurs nulles, on décide donc de supprimer cette variable du jeu de données utilisé pour la modélisation.
+nb_na = df3_flats.loc[df3_flats.surface_terrain == 0].shape[0] / df3_flats.shape[0]
+print(f'on a {round(nb_na* 100,1)}% de valeurs nulles, on décide donc de supprimer cette variable du jeu de données utilisé pour la modélisation.')
 
 # Maisons:
 fig, axes = plt.subplots(ncols=2, figsize=(14, 5))
@@ -166,7 +176,7 @@ plt.show()
 # filtre: 
 df3_houses = df3_houses.loc[
     (df3_houses.surface_terrain >= 0) & 
-    (df3_houses.surface_terrain <= 1200), 
+    (df3_houses.surface_terrain <= 1500), 
     :
 ]
 
@@ -222,13 +232,20 @@ for target in ("valeur_fonciere_m2", "l_valeur_fonciere", "l_valeur_fonciere_m2"
     target
     display(df3_flats[target].describe())
 
-# Plot: 
+# Plots: 
 colors = sns.color_palette(n_colors=3)
 fig, axes = plt.subplots(ncols=2, nrows=3, figsize=(14,14))
 
 for c, target in enumerate(["valeur_fonciere_m2", "l_valeur_fonciere", "l_valeur_fonciere_m2"]): 
     sns.histplot(data=df3_houses, x=target, bins=100, ax=axes[c, 0], color = colors[c])
     sns.boxplot(data=df3_houses, x=target, ax=axes[c, 1], color=colors[c]);
+plt.show()
+
+# Plot plus précis: 
+fig, axes = plt.subplots(ncols=2, figsize=(14, 5))
+fig.suptitle("Valeurs foncières des Appartements")
+sns.histplot(data=df3_houses, x="valeur_fonciere_m2", bins=100, ax=axes[0])
+sns.boxplot(data=df3_houses, x="valeur_fonciere_m2", ax=axes[1]);
 plt.show()
 
 # Filtre + viz
@@ -238,7 +255,7 @@ fig, axes = plt.subplots(ncols=2, nrows=3, figsize=(14, 14))
                                         # filtre à changer + temp à enlever ! # 
 tmp_houses = df3_houses.loc[
     (df3_houses.valeur_fonciere_m2 >= 5000) & 
-    (df3_houses.valeur_fonciere_m2 <= 20000), 
+    (df3_houses.valeur_fonciere_m2 <= 50000), 
     :]
 prop = tmp_houses.shape[0] / df2_houses.shape[0]
 
@@ -335,6 +352,104 @@ df4_flats.loc[:, QUANT_VARS] = df4_flats.loc[:, QUANT_VARS].astype(float)
 
 # Visualisation
 
+df4_houses[QUANT_VARS]\
+    .corr(method="pearson")\
+    [["valeur_fonciere_m2", "l_valeur_fonciere", "l_valeur_fonciere_m2"]]
 
+fig, axes = plt.subplots(ncols=2, figsize=(14, 4))
+
+sns.scatterplot(data=df4_houses, x="surface_reelle_bati", y="valeur_fonciere", ax=axes[0])
+sns.scatterplot(data=df4_houses, x="surface_reelle_bati", y="l_valeur_fonciere", color="orange", ax=axes[1]); 
+plt.show()
+
+
+df4_flats[QUANT_VARS]\
+    .corr(method="pearson")\
+    [["valeur_fonciere_m2", "l_valeur_fonciere", "l_valeur_fonciere_m2"]]
+
+fig, axes = plt.subplots(ncols=2, figsize=(14, 4))
+
+sns.scatterplot(data=df4_flats, x="surface_reelle_bati", y="valeur_fonciere", ax=axes[0])
+sns.scatterplot(data=df4_flats, x="surface_reelle_bati", y="l_valeur_fonciere", color="orange", ax=axes[1]); 
+plt.show()
+
+
+for target in ("valeur_fonciere", "valeur_fonciere_m2", "l_valeur_fonciere", "l_valeur_fonciere_m2"): 
+
+    fig, axes = plt.subplots(ncols=2, nrows=2, figsize=(16, 9), sharey=True)
+    fig.suptitle(target)
+
+    for var, ax in zip(CAT_VARS, axes.flatten()):
+        sns.boxplot(data=df4_flats, x=var, y=target, ax=ax)
+
+        if var == "trimestre_annee": 
+            ax.tick_params(axis="x", rotation=90)
+
+        ax.set_title(var)
+        ax.set_xlabel(""); 
+
+plt.show()
+
+
+for target in ("valeur_fonciere", "valeur_fonciere_m2", "l_valeur_fonciere", "l_valeur_fonciere_m2"): 
+
+    fig, axes = plt.subplots(ncols=2, nrows=2, figsize=(16, 9), sharey=True)
+    fig.suptitle(target)
+
+    for var, ax in zip(CAT_VARS, axes.flatten()):
+        sns.boxplot(data=df4_houses, x=var, y=target, ax=ax)
+
+        if var == "trimestre_annee": 
+            ax.tick_params(axis="x", rotation=90)
+
+        ax.set_title(var)
+        ax.set_xlabel(""); 
+plt.show()
+
+price_evol = df3\
+    .groupby(["date_mutation"])\
+    ["valeur_fonciere", "l_valeur_fonciere", "valeur_fonciere_m2", "l_valeur_fonciere_m2"]\
+    .mean() 
+
+k = 90
+
+price_evol\
+    .rolling(window=k)\
+    .mean()\
+    .plot(
+        subplots=True, 
+        layout=(2, 2), 
+        figsize=(16, 8), 
+        title=rf"Moyennes mobiles valeurs foncières $k$={k}");
 
 # Sélection des variables
+
+to_select = [
+    "id_mutation", 
+    "date_mutation", 
+    "valeur_fonciere", 
+    "surface_reelle_bati",
+    "nombre_pieces_principales", 
+    "dependance", 
+    "arrondissement",
+    "trimestre_annee"
+]
+
+df_mod_flats = df4_flats[to_select]
+df_mod_houses = df4_houses[to_select]
+
+df_mod_flats = df_mod_flats.dropna(axis=0)
+df_mod_houses = df_mod_houses.dropna(axis=0)
+
+df_mod_flats = df_mod_flats.set_index("id_mutation")
+n, p = df_mod_flats.shape
+prop = 100 * n / df_mod_flats.shape[0]
+print(f"{p} variables et {n:,} observations -> {round(prop, 2)}% d'observations conservées pour les appartements")
+
+df_mod_houses = df_mod_houses.set_index("id_mutation")
+n, p = df_mod_houses.shape
+prop = 100 * n / df_mod_houses.shape[0]
+print(f"{p} variables et {n:,} observations -> {round(prop, 2)}% d'observations conservées pour les maisons ")
+
+
+## Train/test split
