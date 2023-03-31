@@ -84,11 +84,38 @@ def make_regression_report(metrics: Dict, title: Optional[str]=None) -> Table:
     return table
 
 def display_regression_report(results: Dict, title: Optional[str]=None) -> None:
-    """Description. Display the results of the regression models in the console.
+    """Description. Display metrics of regression models in the console.
     
     Args:
-        results (Dict): Description. A dictionary with the metrics of each model.
-        title (Optional[str], optional): The title of the table. Defaults to None."""
+        metrics (Dict): A dictionary with the metrics of each model.
+        title (Optional[str], optional): The title of the table. Defaults to None.
+        
+    Returns:
+        Table: A rich table with the results of the regression models.
+        
+    Example:
+    >>> results = {
+    ...     "model_1": {
+    ...         "mean_absolute_error": 0.1,
+    ...         "mean_absolute_percentage_error": 0.2,
+    ...         "mean_squared_error": 0.3,
+    ...         "r2_score": 0.4
+    ...     },
+    ...     "model_2": {
+    ...         "mean_absolute_error": 0.5,
+    ...         "mean_absolute_percentage_error": 0.6,
+    ...         "mean_squared_error": 0.7,
+    ...         "r2_score": 0.8
+    ...     }
+    ... }
+    >>> make_regression_report(results)
+    +-----------+---------------+---------------+---------------+---------------+
+    |   Model   |      MAE      |     % MAPE    |      MSE      |      % R²     |
+    +-----------+---------------+---------------+---------------+---------------+
+    | model_1   | 0.1           | 20.0          | 3.00e-01      | 40.0          |
+    | model_2   | 0.5           | 60.0          | 7.00e-01      | 80.0          |
+    +-----------+---------------+---------------+---------------+---------------+
+    """
 
     table = make_regression_report(results, title=title)
     console = Console()
