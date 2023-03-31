@@ -20,5 +20,5 @@ VARS = [
 ]
 
 df2 = df.loc[:, df.columns.isin(VARS)]
-
-df2.to_csv(r'C:\Users\flore\OneDrive\Bureau\2023\Drive\_Projects\Business Data Challenge\TransportIDF.csv', index=False)
+df3 = df2[df2["exploitant"].str.contains("RATP") == True]
+df3.to_csv(r'C:\Users\flore\OneDrive\Bureau\2023\Drive\_Projects\Business Data Challenge\TransportIDF.csv', index=False)
