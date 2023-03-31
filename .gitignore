@@ -1,10 +1,4 @@
 data 
-**exploration/exploration_dvf_cache
-**exploration/exploration_dvf_files/
 *.html
-*.RData
-*.Rhistory
-**_bookdown_files/
-**/exploration/rsconnect/
-**/exploration/dvf/
 **__pycache__/
+backup/models/
