@@ -42,7 +42,7 @@ def prepare_dataset(
         df: DataFrame,
         target_var: str,
         quant_filters: Dict,
-        na_thresold: float=.2, 
+        na_threshold: float=.2, 
         date_var: str="date_mutation",
         mov_av_windows: Optional[List]=None, 
         neighborhood_var: Optional[str]=None
@@ -53,7 +53,7 @@ def prepare_dataset(
         df (DataFrame): pandas DataFrame with DVF+ data.
         target_var (str): name of target variable.
         quant_filters (Dict): dictionary with quantitative variables and their intervals.
-        na_thresold (float): threshold for removing columns with too many missing values.
+        na_threshold (float): threshold for removing columns with too many missing values.
         date_var (str): name of date column.
         mov_av_winddows (Optional[List]): list of moving average windows.
         neighborhood_var (Optional[str]): name of neighborhood column.
@@ -73,7 +73,7 @@ def prepare_dataset(
     df = df[dvf_vars_updated+bnb_vars_updated]
 
     # Remove columns with too many missing values
-    df, na_cols = remove_na_cols(df, threshold=na_thresold)
+    df, na_cols = remove_na_cols(df, threshold=na_threshold)
 
     for col in na_cols:   
         if col in dvf_vars_updated: 

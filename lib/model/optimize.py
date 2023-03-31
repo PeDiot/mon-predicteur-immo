@@ -1,5 +1,7 @@
 import sqlalchemy
 from optuna import Trial, create_study
+from optuna.pruners import BasePruner
+from optuna.study.study import Study
 
 import numpy as np 
 from .estimator import CustomRegressor
@@ -79,3 +81,40 @@ def optuna_objective(
     mape = mean_absolute_percentage_error(prices, pred_prices)
 
     return mape
+
+class OptimPruner(BasePruner):
+    """Description. Stop optuna optimisation process if no improvement after n trials.
+    
+    Args:
+        n_warmup_trials (int): number of trials to warm up the process
+        n_trials_to_prune (int): number of trials to stop the process if no improvement"""
+
+    def __init__(self, n_warmup_trials: int, n_trials_to_prune: int):
+        self.n_warmup_trials = n_warmup_trials
+        self.n_trials_to_prune = n_trials_to_prune
+
+    def __repr__(self) -> str:
+        return f"OptimPruner(n_warmup_trials={self.n_warmup_trials}, n_trials_to_prune={self.n_trials_to_prune})"
+
+    def prune(self, study: Study, trial: Trial) -> bool:
+        """Description. Stop optuna optimisation process if no improvement after n trials.
+        
+        Args:
+            study (Study): optuna study with history of all trials
+            trial (Trial): optuna trial."""
+        
+        if study.best_trial.number > trial.number - self.n_trials_to_prune:
+            return False
+
+        if trial.number < self.n_warmup_trials:
+            return False
+
+        best_value = study.best_trial.intermediate_values.get("mape")
+        if best_value is None:
+            return False
+
+        value = trial.intermediate_values.get("mape")
+        if value is None:
+            return False
+
+        return value >= best_value
