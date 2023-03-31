@@ -10,7 +10,8 @@ os.chdir('C:/Users/flore/OneDrive/Bureau/2023/Drive/_Projects/Business Data Chal
 df_zip = zipfile.ZipFile(r'C:\Users\flore\OneDrive\Bureau\2023\Drive\_Projects\Business Data Challenge\bpe21.zip')
 df = pd.read_csv(df_zip.open('bpe21_ensemble_xy.csv'), sep = ";")
 
-VARS = ['AN','DCIRIS','QUALI_IRIS','LAMBERT_X','LAMBERT_Y','TYPEQU']
+df.columns
+VARS = ['AN','DCIRIS','DEP','QUALI_IRIS','LAMBERT_X','LAMBERT_Y','TYPEQU']
 df2 = df.loc[:, df.columns.isin(VARS)]
 
 def nb_type_by_IRIS(df, type):
@@ -27,114 +28,33 @@ dict = {'A501': 'COIFFURE', 'C101' : 'ÉCOLE MATERNELLE',
         'C503' : 'ÉCOLE D’INGÉNIEURS', 'B101' : 'HYPERMARCHÉ', 'B102' : 'SUPERMARCHÉ',
         'B103' : 'GRANDE SURFACE DE BRICOLAGE', 'B201' : 'SUPÉRETTE', 'B202' : 'ÉPICERIE'}
 
-print(type(dict)) 
-
 for k in dict.keys():
     tmp  = nb_type_by_IRIS(df2, k)
     df2 = df2.merge(tmp, left_on = 'DCIRIS', right_on = 'DCIRIS', how='left')
     df2.rename(columns={'count': 'nb_'+dict[k]}, inplace=True)
     print(f'nb_{dict[k]} ajouté')
 
-df2.columns
-df2.head(10)
+k = df2.shape[1] - len(VARS)
+size = df2.shape
+print(f'on a ajouté {k} variables\n la base fait maintenant {size}') 
 
+# traitement code IRIS
+df2['DCIRIS']
+type(df2['DCIRIS'][0])
 
-# groupby iris mais aussi par année 
+df3 = df2[df2["DCIRIS"].str.contains("_IND|0000") == False]
+df3 = df3[df3["DCIRIS"].str.contains("2A|2B") == False] 
 
-df2.to_csv(r'C:\Users\flore\OneDrive\Bureau\2023\Drive\_Projects\Business Data Challenge\bpe.csv', index=False)
+n = df3.shape[0] - df2.shape[0]
+prop = (1 - (df3.shape[0] / df2.shape[0])) *100
+print(f'on a supp {n} lignes, soit {round(prop,0)} %') 
 
+# mise au format
+df3['AN'] = df3['AN'].astype(str) 
+df3.drop('AN', inplace=True, axis=1)
+df3['DCIRIS'] = df3['DCIRIS'].astype(str) 
 
+df4 = df3.groupby('DCIRIS').sum().reset_index() # on évite tout doublons sur les code IRIS
+print(f"une fois que l'on a sommé par IRIS , on passe de ce format {df3.shape} à {df4.shape}")
 
-
-
-
-
-
-# Calcul de la distance entre les biens immobiliers et le commerce le plus proche - still wip ! 
-from pyproj import Transformer
-transformer = Transformer.from_crs("EPSG:2154", "EPSG:4326")
-df2['coords'] = [transformer.transform(x, y) for x, y in zip(df2.LAMBERT_X, df2.LAMBERT_Y)]
-
-> utiliser re pour change re format ici ! 
-
-def distance_to_commerce(df, commerce: str, loc_immo) -> float:
-    """
-    Returns the distance to the closest commerce
-
-    example: distance_to_commerce(df, 'HYPERMARCHÉ') returns the distance to the closest hypermarché
-    """
-    df.loc[df.TYPEQU == commerce]
-    tmp = df.apply(lambda x: geopy.distance.geodesic(x['coords'], [loc_immo]).m, axis=1)
-    return min(tmp)
-
-
-
-# filtre par commerce choist dans l'input 
-# calcul de la distance entre l'appart et coords 
-# return la distance la plus petite
-
-def find_nearest(lat, long):
-    distances = hotels.apply(
-        lambda row: dist(lat, long, row['lat'], row['lon']), 
-        axis=1)
-    return hotels.loc[distances.idxmin(), 'name']
-
-members['DCIRIS'] = members.apply(lambda row: find_nearest(row['lat'], row['lon']), axis=1)
-
-
-from math import radians, cos, sin, asin, sqrt
-
-# on filtre par type de commerce 
-commerce= 'A501'
-df2.loc[df.TYPEQU == commerce]
-
-# on calcule les distances 
-def dist(lat1, long1, lat2, long2):
-    """
-    Calculate the great circle distance between two points 
-    on the earth (specified in decimal degrees)
-    """
-    # convert decimal degrees to radians 
-    lat1, long1, lat2, long2 = map(radians, [lat1, long1, lat2, long2])
-    # haversine formula 
-    dlon = long2 - long1 
-    dlat = lat2 - lat1 
-    a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
-    c = 2 * asin(sqrt(a)) 
-    # Radius of earth in kilometers is 6371
-    km = 6371* c
-    return km
-
-bien1 = 48.856614
-bien2 = 2.3522219
-dist(bien1, bien2, df2['coords'][0][0], df2['coords'][0][1])
-
-
-def distance_to_commerce(df, commerce: str, loc_immo) -> float:
-    """
-    Returns the distance to the closest commerce for a given location
-
-    example: 
-    loc_immo = (48.856614, 2.3522219)
-    distance_to_commerce(df, 'HYPERMARCHÉ', loc_immo) returns the distance to the closest hypermarché
-    """
-    df.loc[df.TYPEQU == commerce]
-    df.apply(lambda x: dist(loc_immo[0], loc_immo[1], df2['coords'][x][0], df2['coords'][x][1], axis=1))
-
-loc_immo = [48.856614,2.3522219]
-test = df2.loc[df.TYPEQU == 'A501']
-dist(loc_immo[0], loc_immo[1], test['coords'][10][0], test['coords'][10][1])
-
-
-test = test.apply(dist(loc_immo[0], loc_immo[1], test['coords'][10][0], test['coords'][10][1]), axis=1)
-
-test['coords'][x][0]
-test
-
-d = distance_to_commerce(df2, 'A501', loc_immo)
-
-
-    # dist(loc_immo[0], loc_immo[1], df2['coords'][0][0], df2['coords'][0][1])
-
-
-
+df4.to_csv(r'C:\Users\flore\OneDrive\Bureau\2023\Drive\_Projects\Business Data Challenge\bpe.csv', index=False)
