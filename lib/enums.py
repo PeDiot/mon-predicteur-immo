@@ -46,10 +46,8 @@ DVF_SELECTED_VARS = [
     "nombre_pieces_principales",
     "surface_terrain",
     "dependance",
-    "annee",
     "trimestre",
     "mois",
-    "jour" 
 ]
 
 # BNB enums
@@ -197,17 +195,23 @@ BNB_SELECTED_VARS = [
     "baie_orientation_est_ou_ouest",
     "baie_orientation_sud", 
     "distance_batiment_historique_plus_proche",
-    "nom_batiment_historique_plus_proche",
     "qpv", 
     "nb_lot_garpark",
     "nb_lot_tot",
     "nb_log",
     "nb_lot_tertiaire",
-    "l_etat_en_projet",
-    "l_etat_en_construction",
-    "l_etat_en_service",
     "alea_argiles",
     "alea_radon"
 ]
 
 BNB_PARCELLE_KEY = "parcelle_id"
+
+DISCRETE_VARS = [
+    "nombre_pieces_principales",
+    "nb_lot_garpark",                          
+    "nb_lot_tot",
+    "nb_log",
+    "nb_lot_tertiaire",  
+]
+
+CATEGORICAL_VARS = ["trimestre", "mois", "nombre_pieces_principales", "code_iris"]

@@ -8,7 +8,7 @@ from tqdm import tqdm
 import os 
 
 from pandas.core.frame import DataFrame
-from typing import List, Dict 
+from typing import List, Tuple 
 
 from lib.enums import (
     REL_BATIMENT_GROUPE_PARCELLE, 
@@ -26,6 +26,8 @@ from lib.enums import (
     BNB_PARCELLE_KEY, 
     DVF_PARCELLE_KEY, 
 )
+
+from .utils import remove_na_cols
 
 VARS = {
     "rel_batiment_groupe_parcelle" : REL_BATIMENT_GROUPE_PARCELLE,
@@ -162,24 +164,6 @@ def fill_dummy_vars(df: DataFrame, var_name: str) -> DataFrame:
 
     return df 
 
-def get_na_proportion(df: DataFrame, col: str) -> float:
-    
-    return df[col].isna().sum() / df.shape[0]
-
-def feature_selection(df: DataFrame, cols: List, na_max: float) -> DataFrame: 
-    """Description. Select columns with a proportion of NA lower than na_max."""
-
-    if na_max < 0 or na_max > 1: 
-        raise ValueError("na_max is in [0, 1].")
-
-    to_select = [
-        col 
-        for col in cols 
-        if get_na_proportion(df, col) <= na_max
-    ]
-
-    return df[to_select] 
-
 def preprocess(df: DataFrame, parcelle_ids: List[str], na_max: float) -> DataFrame:
     """Description. Preprocess Base Nationale des Batiments dataset.
     
@@ -220,7 +204,8 @@ def preprocess(df: DataFrame, parcelle_ids: List[str], na_max: float) -> DataFra
     
     bnb = bnb.rename(columns={"alea": "alea_argiles"})
 
-    bnb = feature_selection(bnb, BNB_SELECTED_VARS, na_max=na_max) 
+    bnb = bnb[BNB_SELECTED_VARS]
+    bnb, _ = remove_na_cols(bnb, na_max=na_max) 
    
     return bnb
 

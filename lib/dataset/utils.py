@@ -4,30 +4,34 @@ Data  filtering transformation techniques before regression model training."""
 import numpy as np 
 import pandas as pd
 
+from itertools import chain
+
 import re
 
 from pandas.core.frame import DataFrame
+from pandas.core.series import Series
+
 from typing import (
     Tuple, 
     Optional, 
     List, 
     Dict, 
+    Union,
 )
 
 DIGIT = r"[0-9]+"
 
-def get_na_proportion(df: DataFrame, col: str) -> float:
-    """Description. Returns the proportion of missing values in pandas column."""
-    
-    return df[col].isna().sum() / df.shape[0]
+def flatten_list(list_of_lists: List) -> List: 
+    """Description. Flattens list of lists to list."""
 
-def remove_na_cols(df: DataFrame, threshold: float) -> Tuple:
-    """Description. Removes columns with missing values above threshold."""
-    
-    na_cols = [col for col in df.columns if get_na_proportion(df, col) > threshold]
-    df = df.drop(na_cols, axis=1)
-    
-    return df, na_cols
+    return list(chain(*list_of_lists))
+
+def float_to_string(x: float) -> str:
+    """Description. Convert float string object to string."""
+
+    x = str(x)
+    x = x.split(".")[0]
+    return x
 
 def filter_df_with_quant_var(df: DataFrame, var_name: str, interval: Tuple) -> DataFrame:
         """Description. Select values inside interval for column of pandas DataFrame.
@@ -63,6 +67,24 @@ def transform_price(price: float, log:bool, area: Optional[float]=None) -> float
         y = np.log(y)
     
     return y 
+
+def to_object(x: Series) -> Series: 
+    """Description. Transforms float column to object column."""
+
+    if x.dtype != "object":
+        x = x.astype("object")
+    
+    return x
+
+def replace_inf_with_nan(df: DataFrame, var_name: Optional[str]=None) -> DataFrame: 
+    """Description. Transforms infinite values to NaN in pandas DataFrame column."""
+
+    if var_name == None:
+        df = df.replace([np.inf, -np.inf], np.nan)
+    else: 
+        df[var_name] = df[var_name].replace([np.inf, -np.inf], np.nan)
+
+    return df
 
 def extract_int_from_string(string: str) -> int: 
     """Description. Extracts integer from string ."""
@@ -177,37 +199,29 @@ def remove_cols_with_one_value(df: DataFrame, vars: List) -> DataFrame:
 
     return df
 
+def get_dummie_names(df: DataFrame, prefix: str) -> List: 
+    """Description. Get dummie names from pandas DataFrame."""
+
+    return [col for col in df.columns if col.startswith(prefix)]
+
 def process_window_feature(df: DataFrame) -> DataFrame:   
     """Description. 
     Convert entries with all 0 in dummies related to `baie_orientation` to 1 in 'baie_orientation_indertemine'.""" 
 
-    dummies = [
-        "baie_orientation_indetermine",
-        "baie_orientation_nord",
-        "baie_orientation_ouest",
-        "baie_orientation_est",
-        "baie_orientation_horizontale",
-        "baie_orientation_est_ou_ouest",
-        "baie_orientation_sud"
-    ]
-
-    for var in dummies: 
-        if var not in df.columns: 
-            raise ValueError(f"Variable {var} not found in DataFrame.")
-
+    dummies = get_dummie_names(df, "baie_orientation")
     new_df = df.copy() 
-    new_df.loc[ 
-        (df.baie_orientation_indetermine==0) &
-        (df.baie_orientation_nord==0) &
-        (df.baie_orientation_ouest==0) &
-        (df.baie_orientation_est==0) &
-        (df.baie_orientation_horizontale==0) &
-        (df.baie_orientation_est_ou_ouest==0) &
-        (df.baie_orientation_sud==0),
-        "baie_orientation_indetermine"
-    ] = 1
 
-    return new_df
+    if "baie_indetermine" not in dummies:
+        return new_df
+
+    else: 
+        mask = (df[dummies] == 0).all(axis=1)
+        new_df.loc[ 
+            mask, 
+            "baie_orientation_indetermine"
+        ] = 1
+        
+        return new_df
 
 def get_categorical_vars(df: DataFrame) -> List: 
     """Description. Returns list of categorical variables in a pandas DataFrame.""" 
@@ -218,6 +232,25 @@ def get_categorical_vars(df: DataFrame) -> List:
     ]
 
     return categorical_vars
+
+def is_dummy(x: Union[Series, np.ndarray]) -> bool:
+    """Description. Checks if a numpy array is a dummy variable."""
+
+    if isinstance(x, Series):
+        x = x.values
+
+    x = x.astype(float)
+    x = x[~np.isnan(x)]
+
+    return np.all(np.isin(x, [0., 1.]))  
+
+def is_quantitative(x: Series) -> bool:
+    """Description. Checks if a numpy array is quantitative."""
+
+    if x.dtype == "float64" and not is_dummy(x):  
+        return True
+    
+    return False
 
 def remove_nan_dummy_entries(df: DataFrame, nan_dummy: str) -> DataFrame: 
     """Description. Removes entries with dummy variable set to 0 in a pandas DataFrame."""
@@ -244,12 +277,73 @@ def to_dummies(df: DataFrame, categorical_vars: List) -> DataFrame:
 
     return df
 
-def remove_reference_levels(df: DataFrame, reference_levels: Dict) -> DataFrame: 
-    """Description. Remove reference columns from dataset."""
+def remove_reference_levels(df: DataFrame, reference_levels: Dict) -> Tuple: 
+    """Description. Remove reference columns related to dummy variables."""
+
+    removed = []
 
     for var, lvl in reference_levels.items(): 
         var_name = f"{var}_{lvl}"
+
         if var_name in df.columns: 
             df = df.drop([var_name], axis=1) 
+            removed.append(var_name)
 
-    return df  
+    return df, removed
+
+def get_unique_values(df: DataFrame, col: str) -> List: 
+    """Description. Returns unique values of a column in a pandas DataFrame."""
+
+    unique_values = [
+        val 
+        for val in df[col].unique().tolist()
+        if val == val 
+    ]
+    return unique_values
+
+def get_cols_with_one_value(df: DataFrame, cols: Optional[List]=None) -> List: 
+    """Description. Returns columns with only one value in a pandas DataFrame."""
+
+    if cols == None:
+        cols = df.columns.tolist()
+
+    unique_cols = [
+        col for col in cols
+        if len(get_unique_values(df, col)) == 1
+    ]
+    return unique_cols
+
+def get_categorical_vars(df: DataFrame, n_levels_max: int) -> List: 
+    """Description. 
+    Returns list of categorical variables with less than `n_levels_max` levels."""
+    
+    categorical_vars = [
+        col for col in df.columns
+        if df[col].dtype == "object"
+        and len(df[col].unique()) < n_levels_max
+    ]
+
+    return categorical_vars
+
+def get_most_frequent_levels(df: DataFrame, categorical_vars: List) -> Dict: 
+
+    most_frequent = {}
+
+    if "baie_orientation" in categorical_vars: 
+
+        categorical_vars.remove("baie_orientation")
+
+        baie_orientation_dummies = get_dummie_names(df, "baie_orientation")
+
+        arg_max = np.argmax([
+            df[var].mean()
+            for var in baie_orientation_dummies
+        ]) 
+        ref_level = baie_orientation_dummies[arg_max]
+
+        most_frequent["baie_orientation"] = ref_level.replace("baie_orientation_", "")
+
+    for var in categorical_vars: 
+        most_frequent[var] = df[var].value_counts().index[0]
+
+    return most_frequent
