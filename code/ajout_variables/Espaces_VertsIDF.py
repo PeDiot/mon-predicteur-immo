@@ -20,6 +20,6 @@ VARS = ["Nom de l'espace vert",
         ]
 df2 = df.loc[:, df.columns.isin(VARS)]
 
-# convert Geo Shape to geoloc since geo point has a lot of NaN 
+# filter sur Catégorie = 
 
 df2.to_csv(r'C:\Users\flore\OneDrive\Bureau\2023\Drive\_Projects\Business Data Challenge\espaces_verts_IDF.csv', index=False)
