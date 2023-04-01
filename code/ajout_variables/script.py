@@ -1,3 +1,7 @@
+# fct à ajouter à la lib une fois script.py terminé:  
+# distance(), calculate_distances(), calculate_distances_transports()
+# Une fois les modifs vérifiées, créer dvf+_v2 & voir l'apport des variables 
+
 import pandas as pd 
 import numpy as np 
 import zipfile
@@ -11,7 +15,7 @@ import geopy.distance
 
 path = r'C:\Users\flore\OneDrive\Bureau\2023\Drive\_Projects\Business Data Challenge'
 
-#1/
+#1/ BPE
 df_bpe = pd.read_csv(path+'\\bpe.csv')
 zf = zipfile.ZipFile(path + '\\dvf+.zip')
 df_dvf = pd.read_csv(zf.open('dvf+/Paris_flats.csv'))
@@ -33,7 +37,7 @@ for df in alldfs:
 
 del df_bpe, nb_nan
 
-#2/
+#2/ TRANSPORT
 df_transport = pd.read_csv(path + '\\TransportIDF.csv')
 df_dvf['Geo loc'] = list(zip(df_dvf['latitude'].astype(str), df_dvf['longitude'].astype(str)))
 
@@ -89,7 +93,7 @@ df.rename(columns={"Distance": "Distance_transport"})
 
 import geopy.distance
 
-def calculate_distances(df_dvf, df_transport):
+def calculate_distances_transports(df_dvf, df_transport):
     # Define a function to calculate the distance between two points using Geopy
     def distance(loc1, loc2):
         return geopy.distance.distance(loc1, loc2).meters
@@ -132,9 +136,7 @@ def calculate_distances(df_dvf, df_transport):
 
 df_dvf = calculate_distances(df_dvf, df_transport)
 
-# OR: 
-
-import geopy.distance
+# autre approche en utilisant .apply():
 
 def calculate_distances(df_dvf, df_transport):
 
@@ -160,11 +162,9 @@ def calculate_distances(df_dvf, df_transport):
 
     return df_dvf
 
-
 df_dvf = calculate_distances(df_dvf, df_transport)
 
-
-#3/
+#3/ ESPACES VERTS
 df_ev = pd.read_csv(path+'\\all_distances_parcs.csv')
 
 for i in range(0, len(df_ev)):
