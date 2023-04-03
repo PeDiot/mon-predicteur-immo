@@ -164,13 +164,12 @@ def fill_dummy_vars(df: DataFrame, var_name: str) -> DataFrame:
 
     return df 
 
-def preprocess(df: DataFrame, parcelle_ids: List[str], na_max: float) -> DataFrame:
+def preprocess(df: DataFrame, parcelle_ids: List[str]) -> DataFrame:
     """Description. Preprocess Base Nationale des Batiments dataset.
     
     Args:
         df (DataFrame): Base Nationale des Batiments dataset.
         parcelle_ids (List[str]): List of parcelle ids from DVF dataset.
-        na_max (float): Maximum proportion of NA values for a variable to be kept.
         
     Returns:
         DataFrame: Preprocessed Base Nationale des Batiments dataset."""
@@ -205,28 +204,22 @@ def preprocess(df: DataFrame, parcelle_ids: List[str], na_max: float) -> DataFra
     bnb = bnb.rename(columns={"alea": "alea_argiles"})
 
     bnb = bnb[BNB_SELECTED_VARS]
-    bnb, _ = remove_na_cols(bnb, na_max=na_max) 
    
     return bnb
 
-def create_dvfplus(
-    dvf: DataFrame, 
-    bnb: DataFrame, 
-    na_max: float
-) -> DataFrame: 
+def create_dvfplus(dvf: DataFrame, bnb: DataFrame) -> DataFrame: 
     """Description. Create DVF+ dataset.
     
     Args:
         dvf (DataFrame): DVF dataset.
         bnb (DataFrame): Base Nationale des Batiments dataset.
-        na_max (float): Maximum proportion of NA values for a variable to be kept.
         
     Returns:
         DataFrame: DVF+ dataset which consists of DVF features augmented with BNB features."""
 
     parcelle_ids = select_dvf_parcelle_ids(dvf)
 
-    bnb = preprocess(bnb, parcelle_ids, na_max) 
+    bnb = preprocess(bnb, parcelle_ids) 
     dvfplus = pd.merge(
         dvf,
         bnb, 

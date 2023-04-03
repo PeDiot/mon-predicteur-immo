@@ -4,6 +4,7 @@ import pickle as pkl
 from .estimator import CustomRegressor
 
 def save_model(
+    path: str,
     model: CustomRegressor, 
     feature_names: List[str],
     version: int, 
@@ -14,6 +15,7 @@ def save_model(
     Save CustomRegressor model and names of features used to train model.
     
     Args:
+        path (str): path to directory where model will be saved.
         model (CustomRegressor): model to save.
         feature_names (List[str]): list of feature names.
         version (int): model version.
@@ -22,7 +24,7 @@ def save_model(
 
     estimator = model.estimator.__class__.__name__
     file_name = f"{estimator}-{geo_area}-{property_type}-v{version}.pkl".lower()
-    file_path = f"{BACKUP_DIR}models/{file_name}"
+    file_path = f"{path}/{file_name}"
 
     to_save = {
         "model": model,
@@ -35,6 +37,7 @@ def save_model(
     print(f"{estimator} and feature names saved at {file_path}")
 
 def load_model(
+    path: str,
     estimator_name: str, 
     version: int, 
     geo_area: str, 
@@ -43,6 +46,7 @@ def load_model(
     """Description. Load CustomRegressor model and names of features used to train model.
     
     Args:
+        path (str): path to directory where model is saved.
         estimator_name (str): name of estimator passed as argument of CustomRegressor model.
         version (int): model version.
         geo_area (str): geo area on which model was trained.
@@ -52,7 +56,7 @@ def load_model(
         Dict: loaded model and feature names."""
 
     file_name = f"{estimator_name}-{geo_area}-{property_type}-v{version}.pkl".lower()
-    file_path = f"{BACKUP_DIR}models/{file_name}"
+    file_path = f"{path}/{file_name}"
 
     with open(file_path, "rb") as f: 
         to_load = pkl.load(f)

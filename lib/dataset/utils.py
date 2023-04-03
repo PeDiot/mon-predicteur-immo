@@ -8,6 +8,8 @@ from itertools import chain
 
 import re
 
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
+
 from pandas.core.frame import DataFrame
 from pandas.core.series import Series
 
@@ -33,7 +35,7 @@ def float_to_string(x: float) -> str:
     x = x.split(".")[0]
     return x
 
-def filter_df_with_quant_var(df: DataFrame, var_name: str, interval: Tuple) -> DataFrame:
+def filter_numeric_var(df: DataFrame, var_name: str, interval: Tuple) -> DataFrame:
         """Description. Select values inside interval for column of pandas DataFrame.
         
         Args:
@@ -82,7 +84,7 @@ def replace_inf_with_nan(df: DataFrame, var_name: Optional[str]=None) -> DataFra
     if var_name == None:
         df = df.replace([np.inf, -np.inf], np.nan)
     else: 
-        df[var_name] = df[var_name].replace([np.inf, -np.inf], np.nan)
+        df.loc[:, var_name] = df.loc[:, var_name].replace([np.inf, -np.inf], np.nan)
 
     return df
 
@@ -112,7 +114,7 @@ def calc_movav_prices(
         lag (int): lag to apply before moving average.
         price_var (str): name of price column.
         date_var (str): name of date column.
-        neighborhood_var (Optional[str]): name of neighborhood column.
+        neighborhood_var (Optional[str]): name of neighborhood column to calculate average prices by group.
     
     Returns:
         DataFrame: pandas DataFrame with moving average lagged prices.""" 
@@ -150,12 +152,13 @@ def add_movav_prices(
         df (DataFrame): pandas DataFrame with price column.
         mov_av_prices (DataFrame): pandas DataFrame with moving average lagged prices.
         date_var (str): name of date column.
-        neighborhood_var (Optional[str]): name of neighborhood column.
+        neighborhood_var (Optional[str]): name of neighborhood column to calculate average prices by group. 
         
     Returns:
         DataFrame: DVF dataset with moving average lagged prices."""
 
     keys = []
+    
     if neighborhood_var != None: 
         keys.append(neighborhood_var) 
         
@@ -244,8 +247,8 @@ def is_dummy(x: Union[Series, np.ndarray]) -> bool:
 
     return np.all(np.isin(x, [0., 1.]))  
 
-def is_quantitative(x: Series) -> bool:
-    """Description. Checks if a numpy array is quantitative."""
+def is_numeric(x: Series) -> bool:
+    """Description. Checks if a numpy array is numeric."""
 
     if x.dtype == "float64" and not is_dummy(x):  
         return True
@@ -347,3 +350,39 @@ def get_most_frequent_levels(df: DataFrame, categorical_vars: List) -> Dict:
         most_frequent[var] = df[var].value_counts().index[0]
 
     return most_frequent
+
+def impute_missing_values(x: Series, dtype: str): 
+    """Description. Impute missing values in pandas Series."""
+
+    if dtype == "numeric": 
+        med = x.median()
+        return x.fillna(value=med)
+    
+    elif dtype == "category": 
+        most_frequent = x.mode()[0]
+        return x.fillna(value=most_frequent)
+    
+    else:
+        raise ValueError("dtype must be 'numeric' or 'category'.")
+        
+
+def scale_features(scaler: Union[StandardScaler, MinMaxScaler], X: np.ndarray, fit: bool=False) -> Tuple:
+    """Description. Scale features using a scaler.
+    
+    Args:
+        scaler: Scaler to use.
+        X: Features to scale.
+        fit: Whether to fit the scaler or not.
+
+    Returns: Scaled features and scaler."""
+
+    if fit:
+        scaler.fit(X)
+        X_scaled = scaler.transform(X)
+
+        return X_scaled, scaler
+
+    else: 
+        X_scaled = scaler.transform(X)
+
+        return X_scaled

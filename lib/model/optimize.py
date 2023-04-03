@@ -1,13 +1,21 @@
 import sqlalchemy
-from optuna import Trial, create_study
+from optuna import Trial
 from optuna.pruners import BasePruner
 from optuna.study.study import Study
 
 import numpy as np 
+from tqdm import tqdm
+
 from .estimator import CustomRegressor
 from sklearn.metrics import mean_absolute_percentage_error
 
-from typing import Dict
+from torch.utils.data import DataLoader
+import torch 
+from torch.optim.lr_scheduler import ExponentialLR
+
+from typing import Dict, Tuple, Optional
+
+from .estimator import MLP
 
 def generate_param_grid(trial: Trial, regressor: CustomRegressor) -> Dict: 
     """Description. Generate parameter grid for CustomRegressor model.
@@ -26,6 +34,7 @@ def generate_param_grid(trial: Trial, regressor: CustomRegressor) -> Dict:
             "n_estimators": trial.suggest_int("n_estimators", 100, 1000),
             "max_depth": trial.suggest_int("max_depth", 3, 10),
             "learning_rate": trial.suggest_loguniform("learning_rate", 1e-3, 1e-1),
+            "subsample": trial.suggest_loguniform("subsample", 0.5, 1.0),
             "reg_alpha": trial.suggest_loguniform("reg_alpha", 1e-3, 1e3),
             "reg_lambda": trial.suggest_loguniform("reg_lambda", 1e-3, 1e3),
             "random_state": 42
@@ -52,7 +61,8 @@ def optuna_objective(
     X_tr: np.ndarray, 
     y_tr: np.ndarray, 
     X_te: np.ndarray, 
-    y_te: np.ndarray
+    y_te: np.ndarray,
+    to_prices: bool = True
 ) -> float:
     """Description.
     Objective function to optimize hyperparams of CustomRegressor model using optuna.
@@ -63,10 +73,11 @@ def optuna_objective(
         y_tr (np.ndarray): training target
         X_te (np.ndarray): test features
         y_te (np.ndarray): test target
+        to_prices (bool): convert target to prices (default: True)
 
-    Returns: MAPE between predicted prices and real prices on test set.
-    
-    Details: target variable is the logarithm of the price (l_valeur_fonciere)."""
+    Returns:
+        float: mean absolute percentage error between true and predicted values 
+            ('valeur_fonciere' or 'l_valeur_fonciere') depending on to_prices."""
 
     params = generate_param_grid(trial, regressor)
 
@@ -75,10 +86,11 @@ def optuna_objective(
 
     y_pred = regressor.predict(X_te)
 
-    prices = np.exp(y_te)
-    pred_prices = np.exp(y_pred)
+    if to_prices:
+        y_te = np.exp(y_te)
+        y_pred = np.exp(y_pred)
 
-    mape = mean_absolute_percentage_error(prices, pred_prices)
+    mape = mean_absolute_percentage_error(y_te, y_pred)
 
     return mape
 
@@ -118,3 +130,90 @@ class OptimPruner(BasePruner):
             return False
 
         return value >= best_value
+
+def optimize_mlp(
+    model: MLP, 
+    train_loader: DataLoader, 
+    val_loader: DataLoader, 
+    optimizer, 
+    criterion, 
+    n_epochs: int, 
+    device: torch.device, 
+    loss_threshold: float = 1e-4, 
+    n_warmup_epochs: int=10, 
+    lr_scheduler: Optional[ExponentialLR] = None
+) -> Tuple:
+    """Description. Training/validation loop for a pytorch model.
+    
+    Args:
+        model (MLP): pytorch model
+        train_loader (DataLoader): training data loader
+        val_loader (DataLoader): validation data loader
+        optimizer (torch.optim): optimizer
+        criterion (torch.nn): loss function
+        n_epochs (int): number of epochs
+        device (torch.device): device to use for training
+        loss_threshold (float, optional): threshold to stop training (default: 1e-4)
+        lr_scheduler (Optional[ExponentialLR], optional): learning rate scheduler (default: None)
+
+    Returns:
+        Tuple: train MSE losses, validation MSE losses"""
+
+    train_losses, val_losses = [], []
+    model.to(device)
+    loop = tqdm(range(n_epochs), leave=True)
+
+    for epoch in loop:
+        train_loss = 0.0
+        val_loss = 0.0
+
+        # train
+        model.train()
+        for X, y in train_loader:
+            X, y = X.to(device), y.to(device)
+
+            optimizer.zero_grad()
+            y_pred = model(X).reshape(-1)
+
+            loss = criterion(y_pred, y)
+            loss.backward()
+
+            optimizer.step()
+
+            train_loss += loss.item() * X.size(0)
+
+        if lr_scheduler is not None:
+            lr_scheduler.step()
+
+        train_loss = train_loss / len(train_loader.dataset)
+
+        # validate
+        with torch.no_grad():
+            model.eval()
+
+            for X, y in val_loader:
+                X, y = X.to(device), y.to(device)
+
+                y_pred = model(X).reshape(-1)
+                loss = criterion(y_pred, y)
+
+                val_loss += loss.item() * X.size(0)
+
+        val_loss = val_loss / len(val_loader.dataset)
+
+
+        if epoch > n_warmup_epochs and np.abs(val_loss - val_losses[-1]) < loss_threshold:
+            break
+
+        train_losses.append(train_loss)
+        val_losses.append(val_loss)
+
+        msg = f"Epoch: {epoch + 1}/{n_epochs} \tTraining Loss: {train_loss:.6f} \tValidation Loss: {val_loss:.6f}"
+
+        if lr_scheduler is not None:
+            last_lr = lr_scheduler.get_last_lr()[0]
+            msg += f"\tLearning Rate: {last_lr:.6f}"
+        
+        loop.set_description(msg) 
+
+    return train_losses, val_losses

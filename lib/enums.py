@@ -26,6 +26,16 @@ RURAL_AREAS = [
     "Rural à habitat très dispersé"
 ]
 
+IDF = [
+    "Seine-et-Marne", 
+    "Yvelines", 
+    "Essonne", 
+    "Hauts-de-Seine",
+    "Seine-Saint-Denis", 
+    "Val-de-Marne", 
+    "Val-d'Oise"
+]
+
 YEARS = [
     2017, 
     2018, 
@@ -42,6 +52,7 @@ DVF_SELECTED_VARS = [
     "date_mutation",
     "valeur_fonciere",
     "nom_commune",
+    "nom_departement", 
     "surface_reelle_bati",
     "nombre_pieces_principales",
     "surface_terrain",
@@ -161,8 +172,6 @@ VARS_WITH_LIST_VALUES = {
 }
 
 BNB_SELECTED_VARS = [
-    "parcelle_id",
-    "code_iris",
     "periode_construction",
     "periode_construction_max",
     "hauteur_mean",

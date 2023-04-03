@@ -1,6 +1,12 @@
 from zipfile import ZipFile
+
 import pandas as pd
+import numpy as np
+import torch
+
 from pandas.core.frame import DataFrame
+
+from torch.utils.data import TensorDataset, DataLoader
 
 def load_dvfplus(
     zip_dir: str, 
@@ -50,3 +56,13 @@ def load_dvfplus(
             df.set_index("id_mutation", inplace=True)
 
     return df
+
+def to_dataloader(X: np.ndarray, y: np.ndarray, batch_size: int=32, shuffle: bool=True) -> DataLoader:
+    """Description. Converts (X, y) numpy arrays to pytorch data loader."""
+    X = torch.from_numpy(X).float()
+    y = torch.from_numpy(y).float()
+
+    dataset = TensorDataset(X, y)
+    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
+
+    return dataloader

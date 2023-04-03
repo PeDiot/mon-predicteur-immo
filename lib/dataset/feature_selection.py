@@ -67,29 +67,35 @@ def compute_rf_importances(
     importances = pd.Series(rf.feature_importances_, index=feature_names).sort_values(ascending=False)
     return importances
 
-def select_important_features(importances: pd.Series, thresold: Union[str, float]="mean") -> List: 
-    """Description. Select features for which MI is above thresold.
+def select_important_features(importances: pd.Series, threshold: Union[str, float]="mean") -> List: 
+    """Description. Select features for which MI is above threshold.
     
     Args:
         importances (Series): Feature Importance values.
-        thresold (Union[str, float]): Thresold for feature selection.
+        threshold (Union[str, float]): threshold for feature selection.
     
     Returns:
         List: List of selected features."""
 
-    if thresold == "mean": 
-        thresold = importances.mean()
-    elif thresold == "median": 
-        thresold = importances.median()
-    elif thresold == "25%": 
+    if threshold == "mean": 
+        threshold = importances.mean()
+    elif threshold == "25%": 
         threshold = importances.quantile(.25)
-    elif thresold == "75%":
-        thresold = importances.quantile(.75)
-    elif type(thresold) == float:
-        thresold = float(thresold)
+    elif threshold == "50%": 
+        threshold = importances.quantile(.5)
+    elif threshold == "75%":
+        threshold = importances.quantile(.75)
+    elif threshold == "90%": 
+        threshold = importances.quantile(.90)
+    elif threshold == "95%":
+        threshold = importances.quantile(.95)
+    elif threshold == "99%":
+        threshold = importances.quantile(.99)
+    elif type(threshold) == float:
+        threshold = float(threshold)
     else: 
-        raise ValueError(f"{thresold} is not a valid thresolding method.")
+        raise ValueError(f"{threshold} is not a valid thresholding method.")
 
-    selected_features = importances[importances > thresold].index.tolist()
+    selected_features = importances[importances > threshold].index.tolist()
 
     return selected_features

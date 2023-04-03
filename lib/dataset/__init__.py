@@ -1,4 +1,4 @@
-from .loader import load_dvfplus
+from .loader import load_dvfplus, to_dataloader
 from .build import prepare_dataset, prepare_dummies
 from .split import (
     temporal_train_test_split, 

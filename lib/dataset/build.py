@@ -4,6 +4,8 @@ Build dataset from DVF+ using methods from utils.py."""
 import rich 
 
 from pandas.core.frame import DataFrame
+from pandas.core.series import Series
+
 from typing import (
     Dict, 
     List, 
@@ -21,27 +23,27 @@ from lib.enums import (
 from .utils import (
     flatten_list, 
     float_to_string, 
-    filter_df_with_quant_var, 
+    filter_numeric_var, 
     transform_price, 
     replace_inf_with_nan, 
     extract_int_from_string, 
     calc_movav_prices, 
     add_movav_prices, 
-    is_quantitative, 
-    to_object, 
+    is_numeric, 
     get_cols_with_one_value, 
     process_window_feature, 
     to_dummies, 
     get_dummie_names, 
     remove_reference_levels, 
+    impute_missing_values
 )
 
-from lib.preprocessing.utils import remove_na_cols
+from lib.preprocessing.utils import remove_na_cols, get_na_proportion
 
 def prepare_dataset(
         df: DataFrame,
         target_var: str,
-        quant_filters: Dict,
+        numeric_filters: Dict,
         na_threshold: float=.2, 
         date_var: str="date_mutation",
         mov_av_windows: Optional[List]=None, 
@@ -52,7 +54,7 @@ def prepare_dataset(
     Args:
         df (DataFrame): pandas DataFrame with DVF+ data.
         target_var (str): name of target variable.
-        quant_filters (Dict): dictionary with quantitative variables and their intervals.
+        numeric_filters (Dict): dictionary with quantitative variables and their intervals.
         na_threshold (float): threshold for removing columns with too many missing values.
         date_var (str): name of date column.
         mov_av_winddows (Optional[List]): list of moving average windows.
@@ -72,38 +74,51 @@ def prepare_dataset(
 
     df = df[dvf_vars_updated+bnb_vars_updated]
 
-    # Remove columns with too many missing values
-    df, na_cols = remove_na_cols(df, threshold=na_threshold)
+    # Get quantitative variables
+    numeric_vars = [
+        var
+        for var in df.columns
+        if is_numeric(df[var])
+        and var not in CATEGORICAL_VARS
+    ]    
 
-    for col in na_cols:   
-        if col in dvf_vars_updated: 
-            dvf_vars_updated.remove(col)
-        elif col in bnb_vars_updated: 
-            bnb_vars_updated.remove(col)
+    # Missing values preprocessing
+    for var in df.columns:
+        
+        if get_na_proportion(df, var) <= na_threshold:
 
-    summary["removed"].extend(na_cols)
+            # Impute numeric variables with median
+            if var in numeric_vars:
+                df.loc[:, var] = impute_missing_values(df[var], dtype="numeric")
+
+            # Impute numeric variables with most frequent value
+            else: 
+                df.loc[:, var] = impute_missing_values(df[var], dtype="category")
+
+        else: 
+            df.drop(var, axis=1, inplace=True)
+
+            if var in dvf_vars_updated: 
+                dvf_vars_updated.remove(var)
+
+            if var in bnb_vars_updated:
+                bnb_vars_updated.remove(var)
+
+            summary["removed"].append(var)
 
     # Check if target variable is in dataset
     if "valeur_fonciere" not in df.columns: 
         raise ValueError("valeur_fonciere not in df.columns")
 
-    # Get quantitative variables
-    quant_vars = [
-        var
-        for var in df.columns
-        if is_quantitative(df[var])
-        and var not in CATEGORICAL_VARS
-    ]
-
     # Apply log transformation to quantitative variables
     if target_var == "l_valeur_fonciere": 
-        df[target_var] = df.apply(lambda row: transform_price(row.valeur_fonciere, True), axis=1) 
+        df.loc[:, target_var] = df.apply(lambda row: transform_price(row.valeur_fonciere, True), axis=1) 
 
-        for var in quant_vars: 
-            if var not in DISCRETE_VARS: 
+        for var in numeric_vars: 
+            if var not in DISCRETE_VARS and var in df.columns: 
 
                 var_name = f"l_{var}"
-                df[var_name] = df[var].apply(transform_price, log=True)
+                df.loc[:, var_name] = df[var].apply(transform_price, log=True)
                 df = replace_inf_with_nan(df, var_name) 
 
                 if var in dvf_vars_updated:
@@ -114,30 +129,31 @@ def prepare_dataset(
                 summary["created"].append(var_name)
 
     # Create price per square meter variable
-    df["valeur_fonciere_m2"] = df.apply(lambda row: transform_price(row.valeur_fonciere, False, row.surface_reelle_bati), axis=1) 
+    df.loc[:, "valeur_fonciere_m2"] = df.apply(lambda row: transform_price(row.valeur_fonciere, False, row.surface_reelle_bati), axis=1) 
+    
     dvf_vars_updated.append("valeur_fonciere_m2")
     summary["created"].append("valeur_fonciere_m2")
 
     # Apply filters on dvf variables 
-    
-    for var_name, interval in quant_filters.items(): 
+    for var_name, interval in numeric_filters.items(): 
 
         if var_name not in df.columns: 
-            raise ValueError(f"{var_name} not in df.columns")
+            print(f"{var_name} has been removed. Filter cannot be applied.")
+            continue 
         
-        df = filter_df_with_quant_var(df, var_name, interval)
+        df = filter_numeric_var(df, var_name, interval)
 
     # Convert categorical variables to object type
     for var in CATEGORICAL_VARS: 
         if var in df.columns: 
-            df[var] = df[var].apply(float_to_string) 
+            df.loc[:, var] = df[var].apply(float_to_string) 
 
-    # Extract neighborhood from nom_commune
-    if neighborhood_var != None: 
+    # Extract neighborhood_var from nom_commune if neighborhood_var is arrondissement
+    if neighborhood_var == "arrondissement": 
         if "nom_commune" not in df.columns: 
             raise ValueError("nom_commune not in df.columns")
         
-        df[neighborhood_var] = df.nom_commune.apply(extract_int_from_string)
+        df.loc[:, neighborhood_var] = df.nom_commune.apply(extract_int_from_string)
 
         dvf_vars_updated.append(neighborhood_var)
         summary["created"].append(neighborhood_var)
@@ -157,7 +173,7 @@ def prepare_dataset(
 
             if target_var == "l_valeur_fonciere": 
                 l_ma_var = f"l_{ma_var}"
-                df[l_ma_var] = df[ma_var].apply(transform_price, log=True)
+                df.loc[:, l_ma_var] = df[ma_var].apply(transform_price, log=True)
 
                 df.drop(labels=[ma_var], axis=1, inplace=True)
 

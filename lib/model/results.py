@@ -14,6 +14,8 @@ from sklearn.metrics import (
     r2_score
 ) 
 
+import torch 
+from torch import Tensor
 
 from rich.table import Table
 from rich.console import Console
@@ -25,7 +27,7 @@ from typing import (
     Union
 )
 
-from .estimator import CustomRegressor
+from .estimator import CustomRegressor, MLP
 
 def compute_metrics(
     model: CustomRegressor, 
@@ -164,6 +166,28 @@ def get_predictions(
         raise ValueError("Target variable must be either 'l_valeur_fonciere' or 'valeur_fonciere'.")
     
     return results 
+
+def predict_mlp(model: MLP, X: Tensor, device: torch.device, to_prices: bool=True) -> np.ndarray:
+    """Predicts the target values using a trained MLP.
+    
+    Args:
+        model: the MLP model
+        dataloader: the dataloader for the dataset
+        device: the device on which the model is located
+        to_prices: if True, the predicted values are exponentiated
+        
+    Returns:
+        A numpy array containing the predicted values.
+    """
+    model.eval()
+
+    with torch.no_grad():
+        X = X.to(device)
+        y_pred = model(X).cpu().numpy().reshape(-1)
+        if to_prices:
+            y_pred = np.exp(y_pred)
+
+    return y_pred
 
 def plot_predictions(
     y_true: np.ndarray, 
