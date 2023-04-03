@@ -9,7 +9,7 @@ import pickle as pkl
 from pandas.core.frame import DataFrame 
 from typing import Dict
 
-from lib.enums import CITIES, YEARS, URBAN_AREAS,RURAL_AREAS
+from lib.enums import CITIES, YEARS 
 
 def load_zip_csv(zip_dir: str, year: int, chunk_size: int=10000) -> DataFrame: 
     """Description. Load zip DVF dataset in chunks."""
@@ -109,34 +109,6 @@ def concat_datasets_per_year(zip_dir: str, geo_area: str , property_type: str) -
         else: 
             tmp = tmp[property_type][geo_area]
 
-        dfs_list.append(tmp)
-
-    df = pd.concat(dfs_list, axis=0).reset_index(drop=True)
-
-    return df  
-
-def concat_datasets(zip_dir: str, enums: str , property_type: str) -> DataFrame: 
-    """Description. Concatenate datasets for a given area over years.
-
-    enums : an element within CITIES, URBAN_AREAS, OR RURAL_AREAS
-    """
-
-    dfs_list = []
-    loop = tqdm(YEARS)
-
-    for year in loop:
-        loop.set_description(f"Processing {year}")
-        tmp = load_zip_pkl(zip_dir, year)
-
-        if enums in CITIES:
-            tmp = tmp[property_type]["cities"][enums]
-
-        elif enums in URBAN_AREAS : 
-            tmp = tmp[property_type][enums]
-        
-        elif enums in RURAL_AREAS:
-            tmp = tmp[property_type][enums]
-            
         dfs_list.append(tmp)
 
     df = pd.concat(dfs_list, axis=0).reset_index(drop=True)

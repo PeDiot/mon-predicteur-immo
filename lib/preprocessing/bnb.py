@@ -1,9 +1,14 @@
 """Description. Data preprocessing methods for "Base Nationale des Batiments" dataset."""
 
 import pandas as pd 
-from typing import List
+import numpy as np 
+
+import ast
 from tqdm import tqdm 
 import os 
+
+from pandas.core.frame import DataFrame
+from typing import List, Tuple 
 
 from lib.enums import (
     REL_BATIMENT_GROUPE_PARCELLE, 
@@ -16,7 +21,13 @@ from lib.enums import (
     BATIMENT_GROUPE_QPV, 
     BATIMENT_GROUPE_RADON, 
     BATIMENT_GROUPE_RNC, 
+    VARS_WITH_LIST_VALUES, 
+    BNB_SELECTED_VARS, 
+    BNB_PARCELLE_KEY, 
+    DVF_PARCELLE_KEY, 
 )
+
+from .utils import remove_na_cols
 
 VARS = {
     "rel_batiment_groupe_parcelle" : REL_BATIMENT_GROUPE_PARCELLE,
@@ -81,3 +92,142 @@ def make_dataset(root: str, fnames: List[str], backup_fname: str):
 
         print(f"Save updated {backup_fpath}...")
         df.to_parquet(backup_fpath, index=False) 
+
+def load_bnb(data_dir: str, file_name: str) -> DataFrame: 
+
+    file_path = data_dir + file_name
+    df = pd.read_parquet(file_path)
+
+    return df
+
+def select_dvf_parcelle_ids(dvf: DataFrame) -> List:
+    """Description. Select parcelle ids from DVF dataset."""
+
+    idxs = dvf[DVF_PARCELLE_KEY].unique().tolist()
+    return idxs 
+
+def recode_enr(x: str) -> List: 
+    x = x.replace(" + ", "+")
+    items = x.split("+")
+
+    return items
+
+def string_tolist(s: str) -> List: 
+    """Description. Convert string object to List."""
+
+    try: 
+        l = ast.literal_eval(s)
+        if type(l) == list: 
+            return l
+        return 
+    
+    except: 
+        return 
+
+def check_list(s: str) -> bool: 
+    """Description. Return True if a string contains a list."""
+
+    s = string_tolist(s)
+    if s != None: 
+        return True
+    
+    return False 
+
+def format_var_name(var: str) -> str: 
+    return var.lower().replace(" ", "_")
+
+def add_empty_dummies(df: DataFrame, var_name: str) -> DataFrame: 
+    """Description. 
+    Add as many columns as unique levels for variable with list as values."""
+
+    if var_name not in list(VARS_WITH_LIST_VALUES.keys()):
+        raise ValueError(f"{var_name} cannot be encoded.")
+
+    to_add = VARS_WITH_LIST_VALUES[var_name]
+    for var in to_add: 
+        new_var_name = var_name + "_" + format_var_name(var)  
+        df.loc[:, new_var_name] = np.nan 
+
+    return df 
+
+def fill_dummy_vars(df: DataFrame, var_name: str) -> DataFrame: 
+    """Description. Fill dummies based on var_name values."""
+
+    def _parse_list(x: List, item: str) -> int:
+        if x != None:
+            return 1 if item in x else 0
+        return 0
+
+    for level in VARS_WITH_LIST_VALUES[var_name]:  
+        dummy = var_name + "_" + format_var_name(level)  
+        df[dummy] = df[var_name].apply(_parse_list, item=level)
+
+    return df 
+
+def preprocess(df: DataFrame, parcelle_ids: List[str]) -> DataFrame:
+    """Description. Preprocess Base Nationale des Batiments dataset.
+    
+    Args:
+        df (DataFrame): Base Nationale des Batiments dataset.
+        parcelle_ids (List[str]): List of parcelle ids from DVF dataset.
+        
+    Returns:
+        DataFrame: Preprocessed Base Nationale des Batiments dataset."""
+     
+    bnb = df\
+        .loc[df[BNB_PARCELLE_KEY].isin(parcelle_ids)]\
+        .drop_duplicates(subset=BNB_PARCELLE_KEY)
+    
+    if "enr" not in list(bnb.columns):
+        raise ValueError("enr column is missing.")
+    
+    bnb["enr"] = bnb.enr.apply(recode_enr) 
+
+    for var in ["l_etat", "baie_orientation"]: 
+        if var not in list(bnb.columns): 
+            raise ValueError(f"{var} column is missing.")
+        
+        bnb[var] = bnb[var].apply(string_tolist)
+
+    for var in list(VARS_WITH_LIST_VALUES.keys()): 
+        bnb = add_empty_dummies(bnb, var)
+        bnb = fill_dummy_vars(bnb, var)
+
+    if "nom_quartier" not in list(bnb.columns): 
+        raise ValueError("nom_quartier column is missing.")
+    
+    bnb["qpv"] = bnb["nom_quartier"].apply(lambda x: 1 if x != "" else 0)
+
+    if "alea" not in list(bnb.columns): 
+        raise ValueError("alea column is missing.")
+    
+    bnb = bnb.rename(columns={"alea": "alea_argiles"})
+
+    bnb = bnb[BNB_SELECTED_VARS]
+   
+    return bnb
+
+def create_dvfplus(dvf: DataFrame, bnb: DataFrame) -> DataFrame: 
+    """Description. Create DVF+ dataset.
+    
+    Args:
+        dvf (DataFrame): DVF dataset.
+        bnb (DataFrame): Base Nationale des Batiments dataset.
+        
+    Returns:
+        DataFrame: DVF+ dataset which consists of DVF features augmented with BNB features."""
+
+    parcelle_ids = select_dvf_parcelle_ids(dvf)
+
+    bnb = preprocess(bnb, parcelle_ids) 
+    dvfplus = pd.merge(
+        dvf,
+        bnb, 
+        how="left", 
+        left_on=DVF_PARCELLE_KEY, 
+        right_on=BNB_PARCELLE_KEY)
+    
+    return dvfplus
+    
+
+
