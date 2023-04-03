@@ -10,7 +10,6 @@ os.chdir('C:/Users/flore/OneDrive/Bureau/2023/Drive/_Projects/Business Data Chal
 df_zip = zipfile.ZipFile(r'C:\Users\flore\OneDrive\Bureau\2023\Drive\_Projects\Business Data Challenge\bpe21.zip')
 df = pd.read_csv(df_zip.open('bpe21_ensemble_xy.csv'), sep = ";")
 
-df.columns
 VARS = ['AN','DCIRIS','DEP','QUALI_IRIS','LAMBERT_X','LAMBERT_Y','TYPEQU']
 df2 = df.loc[:, df.columns.isin(VARS)]
 
