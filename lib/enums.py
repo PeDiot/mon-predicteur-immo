@@ -210,17 +210,53 @@ BNB_SELECTED_VARS = [
     "nb_log",
     "nb_lot_tertiaire",
     "alea_argiles",
-    "alea_radon"
+    "alea_radon",
 ]
 
 BNB_PARCELLE_KEY = "parcelle_id"
+
+# Variables from other data sources
+
+## Gares et stations du réseau ferré d"Île-de-France: https://data.iledefrance-mobilites.fr/explore/dataset/emplacement-des-gares-idf/table/
+
+OTHER_VARS = [
+    "distance_transport",
+    "nb_coiffure",
+    "nb_ecole_maternelle",
+    "nb_college",
+    "nb_lycee_denseignement_general_et/ou_technologique",
+    "nb_medecin_generaliste",
+    "nb_pharmacie",
+    "nb_institut_universitaire",
+    "nb_ecole_dingenieurs",
+    "nb_hypermarche",
+    "nb_supermarche",
+    "nb_grande_surface_de_bricolage",
+    "nb_superette",
+    "nb_epicerie"
+]
+
+# Variable types
 
 DISCRETE_VARS = [
     "nombre_pieces_principales",
     "nb_lot_garpark",                          
     "nb_lot_tot",
     "nb_log",
-    "nb_lot_tertiaire",  
+    "nb_lot_tertiaire", 
+    "nb_coiffure",
+    "nb_ecole_maternelle",
+    "nb_college",
+    "nb_lycee_denseignement_general_et/ou_technologique",
+    "nb_medecin_generaliste",
+    "nb_pharmacie",
+    "nb_institut_universitaire",
+    "nb_ecole_dingenieurs",
+    "nb_hypermarche",
+    "nb_supermarche",
+    "nb_grande_surface_de_bricolage",
+    "nb_superette",
+    "nb_epicerie" 
 ]
 
 CATEGORICAL_VARS = ["trimestre", "mois", "nombre_pieces_principales", "code_iris"]
