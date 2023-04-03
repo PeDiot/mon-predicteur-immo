@@ -1,7 +1,3 @@
-# fct à ajouter à la lib une fois script.py terminé:  
-# distance(), calculate_distances(), calculate_distances_transports()
-# Une fois les modifs vérifiées, créer dvf+_v2 & voir l'apport des variables 
-
 import pandas as pd 
 import numpy as np 
 import zipfile
@@ -50,7 +46,7 @@ df_transport['Latitude'] = 'NaN'
 
 for i in range(0, len(df_transport)):
     df_transport['Latitude'][i] = df_transport['Geo Point'][i].split(',')[0]
-    df_transport['Latitude'][i] = df_transport['Geo Point'][i].split(',')[1]
+    df_transport['Longitude'][i] = df_transport['Geo Point'][i].split(',')[1]
     c += 1 
 c == df_transport.shape[0]
 
@@ -71,12 +67,8 @@ def distance(coord1: str, coord2: str) -> int:
 df_dvf['Distance'] = 123456789
 c= 0 
 tmp = []
-a= distance(df_dvf['Geo loc'][3], df_transport['Geo Point'][10])
-tmp.insert(1, a)
-min(tmp)
-df_dvf['Distance'][3] = min(tmp) 
 
-# 10% en environ 45min ... 
+ 
 for i in range (1, len(df_dvf)):
     c += 1
     for j in range (1,len(df_transport)): 
@@ -85,115 +77,59 @@ for i in range (1, len(df_dvf)):
     tmp = []
     print(f'{c / df_dvf.shape[0]} done') 
 
-df_dvf.colmuns
-df_dvf.Distance.describe()
-df.rename(columns={"Distance": "Distance_transport"})
+df_dvf['Distance']
+df_dvf2 = df_dvf[df_dvf.Distance != 123456789]
+df_dvf2.Distance.describe()
 
-# Sinon, en passant ça en fonction, histoire d'être plus rapide
-
-import geopy.distance
-
-def calculate_distances_transports(df_dvf, df_transport):
-    # Define a function to calculate the distance between two points using Geopy
-    def distance(loc1, loc2):
-        return geopy.distance.distance(loc1, loc2).meters
-        
-    df_dvf = df_dvf.dropna(subset=['Geo loc'])
-    df_transport = df_transport.dropna(subset=['Geo Point'])
-
-    # Initialize the distance column with NaN values
-    df_dvf['Distance'] = np.nan
-
-    # Initialize the tmp list
-    tmp = []
-
-    # Loop through each row in df_transport
-    for j in range(len(df_transport)):
-        # Append the jth point in df_transport to the tmp list
-        tmp.append(df_transport['Geo Point'][j])
-
-    # Loop through each row in df_dvf
-    for i in range(len(df_dvf)):
-        # Calculate the distances between the ith point in df_dvf and all points in tmp
-        distances = [distance(df_dvf['Geo loc'][i], point) for point in tmp]
-        
-        # Update the distance column in df_dvf with the minimum distance
-        df_dvf.at[i, 'Distance'] = min(distances)
-        
-        # Clear the tmp list
-        tmp.clear()
-
-        # Append all points in df_transport to the tmp list
-        for j in range(len(df_transport)):
-            tmp.append(df_transport['Geo Point'][j])
-        
-        # Print progress
-        if i % 100 == 0:
-            print(f'{i} rows processed.')
-    
-    return df_dvf
-
-
-df_dvf = calculate_distances(df_dvf, df_transport)
-
-# autre approche en utilisant .apply():
-
-def calculate_distances(df_dvf, df_transport):
-
-    def distance(loc1, loc2):
-        try:
-            return geopy.distance.distance(loc1, loc2).meters
-        except: 
-            return 123456789
-    
-    df_dvf = df_dvf.dropna(subset=['Geo loc'])
-    df_transport = df_transport.dropna(subset=['Geo Point'])
-
-    loc1 = np.array(df_dvf['Geo loc'].values.tolist())
-    loc2 = np.array(df_transport['Geo Point'].values.tolist())
-    total_rows = len(df_dvf)
-
-    distances = np.apply_along_axis(lambda x: np.min([distance(x, y) for y in loc2]), 1, loc1)
-    df_dvf['Distance'] = distances
-
-    for i, row in df_dvf.iterrows():
-        if i % 10 == 0:
-            print(f'{i/total_rows*100:.2f}% of rows processed.')
-
-    return df_dvf
-
-df_dvf = calculate_distances(df_dvf, df_transport)
+# sauvergarde intermédiaire 
+path = r'C:\Users\flore\OneDrive\Bureau\2023\Drive\_Projects\Business Data Challenge'
+filename = '\Paris_flats_v2'
+df_dvf2.to_csv(f'{path}{filename}.csv')
+df_dvf2.Distance.describe()
+df_dvf2.rename(columns={"Distance": "Distance_transport"})
 
 #3/ ESPACES VERTS
 df_ev = pd.read_csv(path+'\\all_distances_parcs.csv')
+df_dvf3 = pd.read_csv(path+'\\Paris_flats_v2.csv')
+df_dvf3 = df_dvf3.rename(columns={"Distance": "Distance_transport"})
 
-for i in range(0, len(df_ev)):
-     df_ev['Location'][i] = df_ev['Location'][i].split(",")
-df_ev['Location']
+# Préparing data: 
+df_ev['long'] = 'NaN'
+df_ev['lat'] = 'NaN'
+for i in (range(0, len(df_ev))):
+    # df_ev['Location'][i] = df_ev['Location'][i].split(",")
+    df_ev['long'][i] = df_ev['Location'][i].split(",")[0]
+    df_ev['lat'][i] = df_ev['Location'][i].split(",")[1]
+df_ev['Location'] = list(zip(df_ev['lat'].astype(str), df_ev['long'].astype(str)))
 
 # check : 
-df_dvf['Geo loc'] = list(zip(df_dvf['latitude'].astype(str), df_dvf['longitude'].astype(str)))
-distance(df_dvf['Geo loc'][0], df_ev['Location'][0])
+distance(df_dvf3['Geo loc'][0], df_ev['Location'][0])
 
-def calculate_distances_Parks(df):
-    """
-    Compute distance between df_dvf & df
-    """
-    df_dvf['Distance_Park'] = 0.0
+df_dvf3['Distance_Park'] = 123456789
+c = 0
+tmp = []
 
-    def distance(loc1, loc2):
-        try:
-            return geopy.distance.distance(loc1, loc2).meters
-        except: 
-            return 123456789
-    
-    loc1 = np.array(df_dvf['Geo loc'].values.tolist())
-    loc2 = np.array(df['Location'].values.tolist())
+# compute distances: 
+for i in range (1, len(df_dvf3)):
+    c += 1
+    for j in range (1,len(df_ev)): 
+        tmp.insert(1, distance(df_dvf3['Geo loc'][i], df_ev['Location'][j]))
+        df_dvf3['Distance_Park'][i] = min(tmp)
+    tmp = []
+    print(f'{c / df_dvf3.shape[0]} done') 
 
-    distances = np.apply_along_axis(lambda x: np.min([distance(x, y) for y in loc2]), 1, loc1)
-    df_dvf['Distance_Park'] = distances
 
-    return df_dvf
 
-t = calculate_distances_Parks(df_ev)
-df_dvf
+
+###
+
+df_dvf4 = df_dvf3[df_dvf3.Distance != 123456789]
+df_dvf4 = df_dvf4.rename(columns={"Distance": "Distance_park"})
+
+VARS = ['id_mutation', 'Distance_park']
+df_dvf5 = df_dvf4.loc[:, df_dvf4.columns.isin(VARS)]
+
+dvf = pd.read_csv(path+'\\Paris_flats_v2.csv')
+dvf_v2 = pd.merge(dvf, df_dvf5, left_on=['id_mutation'], right_on=['id_mutation'], how='left')
+
+dvf_v2
