@@ -90,8 +90,11 @@ df_dvf2.rename(columns={"Distance": "Distance_transport"})
 
 #3/ ESPACES VERTS
 df_ev = pd.read_csv(path+'\\all_distances_parcs.csv')
-df_dvf3 = pd.read_csv(path+'\\Paris_flats_v2.csv')
+df_dvf3 = pd.read_csv(path+'\\Paris_flats_v3.csv')
 df_dvf3 = df_dvf3.rename(columns={"Distance": "Distance_transport"})
+
+
+df_dvf3['Geo loc'] = list(zip(df_dvf3['latitude'].astype(str), df_dvf3['longitude'].astype(str)))
 
 # Préparing data: 
 df_ev['long'] = 'NaN'
@@ -103,27 +106,31 @@ for i in (range(0, len(df_ev))):
 df_ev['Location'] = list(zip(df_ev['lat'].astype(str), df_ev['long'].astype(str)))
 
 # check : 
-distance(df_dvf3['Geo loc'][0], df_ev['Location'][0])
+distance(df_dvf3['Geo loc'][0], df_ev['Location'][1])
+distance(df_dvf3['Geo loc'][1], df_ev['Location'][10])
 
-df_dvf3['Distance_Park'] = 123456789
+
+df_dvf3['Distance_Park'] = 0
 c = 0
 tmp = []
 
 # compute distances: 
-for i in range (1, len(df_dvf3)):
+for i in range (1, len(df_dvf3)): 
     c += 1
-    for j in range (1,len(df_ev)): 
+    for j in range (1, len(df_ev)): 
         tmp.insert(1, distance(df_dvf3['Geo loc'][i], df_ev['Location'][j]))
         df_dvf3['Distance_Park'][i] = min(tmp)
     tmp = []
     print(f'{c / df_dvf3.shape[0]} done') 
 
-
-
+df_dvf3['Distance_Park'].describe()
+df_dvf3.shape
+df_dvf3.to_csv(path+'\\Paris_flats_v4.csv')
 
 ###
 
-df_dvf4 = df_dvf3[df_dvf3.Distance != 123456789]
+
+
 df_dvf4 = df_dvf4.rename(columns={"Distance": "Distance_park"})
 
 VARS = ['id_mutation', 'Distance_park']
