@@ -16,6 +16,7 @@ from typing import (
 from lib.enums import (
     DVF_SELECTED_VARS, 
     BNB_SELECTED_VARS, 
+    OTHER_VARS, 
     DISCRETE_VARS, 
     CATEGORICAL_VARS,
 )
@@ -41,13 +42,13 @@ from .utils import (
 from lib.preprocessing.utils import remove_na_cols, get_na_proportion
 
 def prepare_dataset(
-        df: DataFrame,
-        target_var: str,
-        numeric_filters: Dict,
-        na_threshold: float=.2, 
-        date_var: str="date_mutation",
-        mov_av_windows: Optional[List]=None, 
-        neighborhood_var: Optional[str]=None
+    df: DataFrame,
+    target_var: str,
+    numeric_filters: Optional[Dict]=None,
+    na_threshold: float=.2, 
+    date_var: str="date_mutation",
+    mov_av_windows: Optional[List]=None, 
+    neighborhood_var: Optional[str]=None
 ) -> Tuple:
     """Description. Dataset preparation from DVF+ raw data using methods from utils.py.
     
@@ -61,18 +62,29 @@ def prepare_dataset(
         neighborhood_var (Optional[str]): name of neighborhood column.
         
     Returns:
-        Tuple: DVF dataset with moving average lagged prices, list of variables from DVF, list of variables from BNB."""
+        Tuple: 
+            DVF dataset with moving average lagged prices, 
+            list of variables from DVF, 
+            list of variables from BNB, 
+            list of other variables.
+    """
 
     # Instantiate objects to keep track of changes in dataset columns
     dvf_vars_updated = [col for col in df.columns if col in DVF_SELECTED_VARS]
     bnb_vars_updated = [col for col in df.columns if col in BNB_SELECTED_VARS]
+    other_vars_updated = [col for col in df.columns if col in OTHER_VARS]
 
     summary = {
         "created": [],
         "removed": []
     }
 
-    df = df[dvf_vars_updated+bnb_vars_updated]
+    if len(other_vars_updated) > 0:
+        to_select = dvf_vars_updated + bnb_vars_updated + other_vars_updated
+    else: 
+        to_select = dvf_vars_updated + bnb_vars_updated
+    
+    df = df[to_select] 
 
     # Get quantitative variables
     numeric_vars = [
@@ -101,8 +113,11 @@ def prepare_dataset(
             if var in dvf_vars_updated: 
                 dvf_vars_updated.remove(var)
 
-            if var in bnb_vars_updated:
+            elif var in bnb_vars_updated:
                 bnb_vars_updated.remove(var)
+
+            elif var in other_vars_updated: 
+                other_vars_updated.remove(var)
 
             summary["removed"].append(var)
 
@@ -123,8 +138,12 @@ def prepare_dataset(
 
                 if var in dvf_vars_updated:
                     dvf_vars_updated.append(var_name)
+
                 elif var in bnb_vars_updated: 
                     bnb_vars_updated.append(var_name)
+
+                elif var in other_vars_updated: 
+                    other_vars_updated.append(var_name)
 
                 summary["created"].append(var_name)
 
@@ -135,13 +154,14 @@ def prepare_dataset(
     summary["created"].append("valeur_fonciere_m2")
 
     # Apply filters on dvf variables 
-    for var_name, interval in numeric_filters.items(): 
+    if numeric_filters is not None: 
+        for var_name, interval in numeric_filters.items(): 
 
-        if var_name not in df.columns: 
-            print(f"{var_name} has been removed. Filter cannot be applied.")
-            continue 
-        
-        df = filter_numeric_var(df, var_name, interval)
+            if var_name not in df.columns: 
+                print(f"{var_name} has been removed. Filter cannot be applied.")
+                continue 
+            
+            df = filter_numeric_var(df, var_name, interval)
 
     # Convert categorical variables to object type
     for var in CATEGORICAL_VARS: 
@@ -196,14 +216,15 @@ def prepare_dataset(
     rich.print("Preprocessing summary:")
     rich.print(summary) 
 
-    return df, dvf_vars_updated, bnb_vars_updated
+    return df, dvf_vars_updated, bnb_vars_updated, other_vars_updated
 
 def prepare_dummies(
     df: DataFrame, 
     categorical_vars: List,
     reference_levels: Dict, 
-    dvf_vars: List,    
-    bnb_vars: List
+    dvf_vars: Optional[List],    
+    bnb_vars: Optional[List], 
+    other_vars: Optional[List]
 ) -> Tuple: 
     """Description. Prepare dummies for categorical variables.
     
@@ -213,9 +234,10 @@ def prepare_dummies(
         reference_levels (Dict): dictionary with categorical variables and their reference levels.
         dvf_vars (List): list of variables from DVF.
         bnb_vars (List): list of variables from BNB.
+        other_vars (Optional[List]): list of other variables.
         
     Returns:
-        Tuple: DVF dataset with dummies, list of variables from DVF, list of variables from BNB."""
+        Tuple: DVF dataset with dummies, list of variables from DVF, list of variables from BNB, list of other variables."""
 
     summary = {
         "created": [],
@@ -248,13 +270,30 @@ def prepare_dummies(
 
         summary["created"].extend(dummies_added_bnb)
 
+        if other_vars is not None: 
+            dummies_added_other = [
+                get_dummie_names(df, prefix) 
+                for prefix in categorical_vars
+                if prefix in other_vars
+            ]
+            dummies_added_other = flatten_list(dummies_added_other)
+            dummies_added_other = list(set(dummies_added_other))
+            other_vars.extend(dummies_added_other)
+
+            summary["created"].extend(dummies_added_other)
+
         df, dummies_removed = remove_reference_levels(df, reference_levels)
 
         for dum in dummies_removed: 
+
             if dum in dvf_vars: 
                 dvf_vars.remove(dum)
+
             elif dum in bnb_vars:
                 bnb_vars.remove(dum) 
+
+            elif dum in other_vars: 
+                other_vars.remove(dum)
 
             summary["removed"].append(dum)
 
@@ -266,10 +305,51 @@ def prepare_dummies(
         summary["removed"].extend(to_remove)
 
         for col in to_remove:
-            bnb_vars.remove(col)
+
+            if col in bnb_vars:
+                bnb_vars.remove(col)
+            elif col in dvf_vars:
+                dvf_vars.remove(col)
+            elif col in other_vars:
+                other_vars.remove(col)
 
     rich.print("Preprocessing summary:")
     rich.print(summary) 
 
+    if other_vars is not None: 
+        return df, dvf_vars, bnb_vars, other_vars
+    
     return df, dvf_vars, bnb_vars
         
+def add_distance_to_transportation(df: DataFrame, transportation: DataFrame) -> DataFrame:
+    """Description. Add column which computes distance between properties to closest metro station.
+    
+    Details: only avaiblable for Paris."""
+
+    if "id_mutation" not in df.columns and "id_mutation" not in transportation.columns:
+        raise ValueError("id_mutation must be in both datasets.")
+
+    new_df = df.merge(transportation, on="id_mutation", how="left")
+    return new_df
+
+def add_distance_to_parks(df: DataFrame, parks: DataFrame) -> DataFrame:
+    """Description. Add column which computes distance between properties to closest park.
+    
+    Details: only avaiblable for Paris."""
+
+    if "id_mutation" not in df.columns and "id_mutation" not in parks.columns:
+        raise ValueError("id_mutation must be in both datasets.")
+
+    new_df = df.merge(parks, on="id_mutation", how="left")
+    return new_df
+
+def add_public_facilities(df: DataFrame, facilities: DataFrame) -> DataFrame:
+    """Description. Add columns which count the number of several public facilities.
+    
+    Details: only avaiblable for Paris."""
+
+    if "id_mutation" not in df.columns and "id_mutation" not in facilities.columns:
+        raise ValueError("id_mutation must be in both datasets.")    
+
+    new_df = df.merge(facilities, on="id_mutation", how="left")
+    return new_df

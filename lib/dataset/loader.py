@@ -13,14 +13,16 @@ def load_dvfplus(
     zip_name: str, 
     geo_area: str, 
     property_type: str, 
-    id_mutation_index: bool=False
+    augmented: bool=False,
 ) -> DataFrame: 
     """Description. Load DVF+ table from zip folder.
 
     Args:
-        zip_dirpath (str): path to zip folder containing DVF+.
+        zip_dir (str): path to zip folder containing DVF+.
+        zip_name (str): name of zip folder containing DVF+.
         geo_area (str): name of geographical area.
         property_type (str): name of property type.
+        augmented (bool): whether to load augmented data or not.
 
     Returns:
         DataFrame: DVF+ pandas DataFrame.
@@ -47,13 +49,12 @@ def load_dvfplus(
     zip_dirpath = f"{zip_dir}/{zip_name}.zip"
     zip_folder = ZipFile(zip_dirpath)
 
-    file_name = f"{zip_name}/{geo_area}_{property_type}.csv"
+    file_name = f"{zip_name}/{geo_area}_{property_type}"
 
-    df = pd.read_csv(zip_folder.open(file_name))
+    if augmented:
+        file_name += "_augmented"
 
-    if id_mutation_index:
-        if "id_mutation" in df.columns:
-            df.set_index("id_mutation", inplace=True)
+    df = pd.read_csv(zip_folder.open(file_name + ".csv"))
 
     return df
 

@@ -61,4 +61,6 @@ def load_model(
     with open(file_path, "rb") as f: 
         to_load = pkl.load(f)
 
+    print(f"Succesfully loaded {estimator_name} and feature names from {file_path}.")
+
     return to_load
