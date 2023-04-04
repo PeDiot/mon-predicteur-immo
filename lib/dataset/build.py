@@ -48,7 +48,9 @@ def prepare_dataset(
     na_threshold: float=.2, 
     date_var: str="date_mutation",
     mov_av_windows: Optional[List]=None, 
-    neighborhood_var: Optional[str]=None
+    neighborhood_var: Optional[str]=None, 
+    print_summary: bool=True, 
+    return_var_names: bool=True
 ) -> Tuple:
     """Description. Dataset preparation from DVF+ raw data using methods from utils.py.
     
@@ -60,6 +62,8 @@ def prepare_dataset(
         date_var (str): name of date column.
         mov_av_winddows (Optional[List]): list of moving average windows.
         neighborhood_var (Optional[str]): name of neighborhood column.
+        print_summary (bool): whether to print summary of dataset preparation.
+        return_var_names (bool): whether to return list of variables from DVF, BNB and other variables.
         
     Returns:
         Tuple: 
@@ -212,19 +216,22 @@ def prepare_dataset(
         df = process_window_feature(df) 
 
     # Print summary and return objects 
+    if print_summary:
+        rich.print("Preprocessing summary:")
+        rich.print(summary) 
 
-    rich.print("Preprocessing summary:")
-    rich.print(summary) 
-
-    return df, dvf_vars_updated, bnb_vars_updated, other_vars_updated
+    if return_var_names:
+        return df, dvf_vars_updated, bnb_vars_updated, other_vars_updated
+    else: 
+        return df 
 
 def prepare_dummies(
     df: DataFrame, 
     categorical_vars: List,
     reference_levels: Dict, 
-    dvf_vars: Optional[List],    
-    bnb_vars: Optional[List], 
-    other_vars: Optional[List]
+    dvf_vars: Optional[List]=None,    
+    bnb_vars: Optional[List]=None, 
+    other_vars: Optional[List]=None
 ) -> Tuple: 
     """Description. Prepare dummies for categorical variables.
     
@@ -232,8 +239,8 @@ def prepare_dummies(
         df (DataFrame): pandas DataFrame with DVF+ data.
         categorical_vars (List): list of categorical variables.
         reference_levels (Dict): dictionary with categorical variables and their reference levels.
-        dvf_vars (List): list of variables from DVF.
-        bnb_vars (List): list of variables from BNB.
+        dvf_vars (Optional[List]): list of variables from DVF.
+        bnb_vars (Optional[List]): list of variables from BNB.
         other_vars (Optional[List]): list of other variables.
         
     Returns:
@@ -248,27 +255,29 @@ def prepare_dummies(
 
         df = to_dummies(df, categorical_vars)
         
-        dummies_added_dvf = [
-            get_dummie_names(df, prefix) 
-            for prefix in categorical_vars
-            if prefix in dvf_vars
-        ]
-        dummies_added_dvf = flatten_list(dummies_added_dvf)
-        dummies_added_dvf = list(set(dummies_added_dvf))
-        dvf_vars.extend(dummies_added_dvf)
+        if dvf_vars is not None:
+            dummies_added_dvf = [
+                get_dummie_names(df, prefix) 
+                for prefix in categorical_vars
+                if prefix in dvf_vars
+            ]
+            dummies_added_dvf = flatten_list(dummies_added_dvf)
+            dummies_added_dvf = list(set(dummies_added_dvf))
+            dvf_vars.extend(dummies_added_dvf)
 
-        summary["created"].extend(dummies_added_dvf)
+            summary["created"].extend(dummies_added_dvf)
 
-        dummies_added_bnb = [
-            get_dummie_names(df, prefix) 
-            for prefix in categorical_vars
-            if prefix in bnb_vars
-        ]
-        dummies_added_bnb = flatten_list(dummies_added_bnb)
-        dummies_added_bnb = list(set(dummies_added_bnb))
-        bnb_vars.extend(dummies_added_bnb)
+        if bnb_vars is not None:
+            dummies_added_bnb = [
+                get_dummie_names(df, prefix) 
+                for prefix in categorical_vars
+                if prefix in bnb_vars
+            ]
+            dummies_added_bnb = flatten_list(dummies_added_bnb)
+            dummies_added_bnb = list(set(dummies_added_bnb))
+            bnb_vars.extend(dummies_added_bnb)
 
-        summary["created"].extend(dummies_added_bnb)
+            summary["created"].extend(dummies_added_bnb)
 
         if other_vars is not None: 
             dummies_added_other = [
@@ -284,49 +293,69 @@ def prepare_dummies(
 
         df, dummies_removed = remove_reference_levels(df, reference_levels)
 
-        for dum in dummies_removed: 
+        if dvf_vars is not None and bnb_vars is not None:
+            for dum in dummies_removed: 
 
-            if dum in dvf_vars: 
-                dvf_vars.remove(dum)
+                if dum in dvf_vars: 
+                    dvf_vars.remove(dum)
 
-            elif dum in bnb_vars:
-                bnb_vars.remove(dum) 
+                elif dum in bnb_vars:
+                    bnb_vars.remove(dum) 
 
-            elif dum in other_vars: 
-                other_vars.remove(dum)
+                elif other_vars is not None and dum in other_vars: 
+                    other_vars.remove(dum)
 
-            summary["removed"].append(dum)
+                summary["removed"].append(dum)
 
     to_remove = get_cols_with_one_value(df)
 
     if len(to_remove) > 0:
         df = df.drop(labels=to_remove, axis=1)
 
-        summary["removed"].extend(to_remove)
+        if dvf_vars is not None and bnb_vars is not None: 
+            summary["removed"].extend(to_remove)
 
-        for col in to_remove:
+            for col in to_remove:
 
-            if col in bnb_vars:
-                bnb_vars.remove(col)
-            elif col in dvf_vars:
-                dvf_vars.remove(col)
-            elif col in other_vars:
-                other_vars.remove(col)
+                if col in bnb_vars:
+                    bnb_vars.remove(col)
+                elif col in dvf_vars:
+                    dvf_vars.remove(col)
+                elif other_vars is not None and col in other_vars: 
+                    other_vars.remove(col)
 
-    rich.print("Preprocessing summary:")
-    rich.print(summary) 
+    if dvf_vars is not None and bnb_vars is not None: 
 
-    if other_vars is not None: 
-        return df, dvf_vars, bnb_vars, other_vars
-    
-    return df, dvf_vars, bnb_vars
+        rich.print("Preprocessing summary:")
+        rich.print(summary) 
+
+        if other_vars is not None: 
+            return df, dvf_vars, bnb_vars, other_vars
+        else: 
+            return df, dvf_vars, bnb_vars
+
+    return df
         
 def add_distance_to_transportation(df: DataFrame, transportation: DataFrame) -> DataFrame:
     """Description. Add column which computes distance between properties to closest metro station.
     
     Details: only avaiblable for Paris."""
 
+    if "id_mutation" not in df.columns and "id_mutation" not in transportation.columns:
+        raise ValueError("id_mutation must be in both datasets.")
+
     new_df = df.merge(transportation, on="id_mutation", how="left")
+    return new_df
+
+def add_distance_to_parks(df: DataFrame, parks: DataFrame) -> DataFrame:
+    """Description. Add column which computes distance between properties to closest park.
+    
+    Details: only avaiblable for Paris."""
+
+    if "id_mutation" not in df.columns and "id_mutation" not in parks.columns:
+        raise ValueError("id_mutation must be in both datasets.")
+
+    new_df = df.merge(parks, on="id_mutation", how="left")
     return new_df
 
 def add_public_facilities(df: DataFrame, facilities: DataFrame) -> DataFrame:
@@ -334,5 +363,8 @@ def add_public_facilities(df: DataFrame, facilities: DataFrame) -> DataFrame:
     
     Details: only avaiblable for Paris."""
 
-    new_df = df.merge(facilities, on="code_iris", how="left")
+    if "id_mutation" not in df.columns and "id_mutation" not in facilities.columns:
+        raise ValueError("id_mutation must be in both datasets.")    
+
+    new_df = df.merge(facilities, on="id_mutation", how="left")
     return new_df

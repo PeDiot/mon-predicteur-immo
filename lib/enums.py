@@ -217,23 +217,35 @@ BNB_PARCELLE_KEY = "parcelle_id"
 
 # Variables from other data sources
 
-## Gares et stations du réseau ferré d"Île-de-France: https://data.iledefrance-mobilites.fr/explore/dataset/emplacement-des-gares-idf/table/
+## Transportation in Île-de-France: https://data.iledefrance-mobilites.fr/explore/dataset/emplacement-des-gares-idf/table/
+## Facilities in Paris: https://www.insee.fr/fr/statistiques/3568638?sommaire=3568656
+## Parks in Paris: https://opendata.paris.fr/explore/dataset/espaces_verts/api/?disjunctive.type_ev&disjunctive.categorie&disjunctive.adresse_codepostal&disjunctive.presence_cloture&basemap=jawg.dark&location=11,48.83239,2.34692
 
 OTHER_VARS = [
     "distance_transport",
+    "distance_park", 
     "nb_coiffure",
-    "nb_ecole_maternelle",
-    "nb_college",
-    "nb_lycee_denseignement_general_et/ou_technologique",
-    "nb_medecin_generaliste",
-    "nb_pharmacie",
-    "nb_institut_universitaire",
-    "nb_ecole_dingenieurs",
+    "nb_veterinaire",
+    "nb_pressing-laverie_automatique",
     "nb_hypermarche",
     "nb_supermarche",
-    "nb_grande_surface_de_bricolage",
     "nb_superette",
-    "nb_epicerie"
+    "nb_epicerie",
+    "nb_boulangerie",
+    "nb_boucherie_charcuterie",
+    "nb_ecole_maternelle",
+    "nb_ecole_maternelle_de_regroupement_pedagogique_intercommunal_(rpi)_disperse",
+    "nb_ecole_elementaire",
+    "nb_college",
+    "nb_lycee_denseignement_general_et_ou_technologique",
+    "nb_lycee_denseignement_professionnel",
+    "nb_lycee_denseignement_technique_et_ou_professionnel_agricole",
+    "nb_medecin_generaliste",
+    "nb_pharmacie",
+    "nb_gare_de_voyageurs_dinteret_national",
+    "nb_gare_de_voyageurs_dinteret_regional",
+    "nb_gare_de_voyageurs_dinteret_local",
+    "nb_alimentaire"
 ]
 
 # Variable types
@@ -245,18 +257,27 @@ DISCRETE_VARS = [
     "nb_log",
     "nb_lot_tertiaire", 
     "nb_coiffure",
-    "nb_ecole_maternelle",
-    "nb_college",
-    "nb_lycee_denseignement_general_et/ou_technologique",
-    "nb_medecin_generaliste",
-    "nb_pharmacie",
-    "nb_institut_universitaire",
-    "nb_ecole_dingenieurs",
+    "nb_veterinaire",
+    "nb_pressing-laverie_automatique",
     "nb_hypermarche",
     "nb_supermarche",
-    "nb_grande_surface_de_bricolage",
     "nb_superette",
-    "nb_epicerie" 
+    "nb_epicerie",
+    "nb_boulangerie",
+    "nb_boucherie_charcuterie",
+    "nb_ecole_maternelle",
+    "nb_ecole_maternelle_de_regroupement_pedagogique_intercommunal_(rpi)_disperse",
+    "nb_ecole_elementaire",
+    "nb_college",
+    "nb_lycee_denseignement_general_et_ou_technologique",
+    "nb_lycee_denseignement_professionnel",
+    "nb_lycee_denseignement_technique_et_ou_professionnel_agricole",
+    "nb_medecin_generaliste",
+    "nb_pharmacie",
+    "nb_gare_de_voyageurs_dinteret_national",
+    "nb_gare_de_voyageurs_dinteret_regional",
+    "nb_gare_de_voyageurs_dinteret_local",
+    "nb_alimentaire"
 ]
 
 CATEGORICAL_VARS = ["trimestre", "mois", "nombre_pieces_principales", "code_iris"]

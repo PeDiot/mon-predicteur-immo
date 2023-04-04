@@ -7,6 +7,7 @@ def save_model(
     path: str,
     model: CustomRegressor, 
     feature_names: List[str],
+    metrics: Dict, 
     version: int, 
     geo_area: str, 
     property_type: str
@@ -18,6 +19,7 @@ def save_model(
         path (str): path to directory where model will be saved.
         model (CustomRegressor): model to save.
         feature_names (List[str]): list of feature names.
+        metrics (Dict): dictionary of metrics.
         version (int): model version.
         geo_area (str): geo area on which model was trained.
         property_type (str): property type for which model was trained."""
@@ -28,7 +30,8 @@ def save_model(
 
     to_save = {
         "model": model,
-        "feature_names": feature_names
+        "feature_names": feature_names, 
+        "metrics": metrics, 
     }
 
     with open(file_path, "wb") as f: 
@@ -53,12 +56,14 @@ def load_model(
         property_type (str): property type for which model was trained.
         
     Returns:
-        Dict: loaded model and feature names."""
+        Dict: loaded model, feature names and metrics."""
 
     file_name = f"{estimator_name}-{geo_area}-{property_type}-v{version}.pkl".lower()
     file_path = f"{path}/{file_name}"
 
     with open(file_path, "rb") as f: 
         to_load = pkl.load(f)
+
+    print(f"Succesfully loaded {estimator_name}, feature names and metrics from {file_path}.")
 
     return to_load

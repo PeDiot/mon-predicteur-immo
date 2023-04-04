@@ -189,11 +189,19 @@ def predict_mlp(model: MLP, X: Tensor, device: torch.device, to_prices: bool=Tru
 
     return y_pred
 
+def absolute_percentage_error(true: float, pred: float, return_pct: bool=True) -> float: 
+    """Description. Compute the absolute percentage error."""
+    ape = np.abs((true - pred) / pred) 
+
+    if return_pct:  
+        ape = 100 * ape 
+
+    return ape
+
 def plot_predictions(
     y_true: np.ndarray, 
     y_pred: np.ndarray, 
     add_line: bool=True,
-    color: Union[str, _ColorPalette]="lightblue", 
     title: Optional[str]=None, 
     ax: Optional[Axes]=None
 ):
@@ -203,7 +211,6 @@ def plot_predictions(
         y_true (np.ndarray): The true values.
         y_pred (np.ndarray): The predicted values.
         add_line (bool, optional): Whether to add a line y=x. Defaults to True.
-        color (Union[str, _ColorPalette], optional): The color of the scatterplot. Defaults to "lightblue".
         title (Optional[str], optional): The title of the plot. Defaults to None.
         ax (Optional[Axes], optional): The axes to plot on. Defaults to None."""
 
@@ -213,26 +220,28 @@ def plot_predictions(
     mape = 100*mean_absolute_percentage_error(y_true, y_pred)
     
     tmp = pd.DataFrame(data={"obs": y_true, "pred": y_pred})
+    tmp["ape"] = tmp.apply(lambda row: absolute_percentage_error(row.obs, row.pred), axis=1)
+
     min_x, max_x = tmp.obs.min(), tmp.obs.max()
 
     sns.scatterplot(
-        data=tmp, 
         x="obs", 
         y="pred", 
-        color=color, 
-        label=f"MAPE={round(mape, 2)}%", 
-        ax=ax)
+        data=tmp, 
+        hue="ape", 
+        palette="Reds", 
+        ax=ax
+    )
 
     if add_line:
         sns.lineplot(
             x=[min_x, max_x], 
             y=[min_x, max_x], 
-            label=r"$y=x$", 
             color="black", 
             linestyle="dotted", 
             ax=ax)
 
-    ax.legend()
+    ax.legend(loc="best", title="Absolute error (%)")
 
     if title is not None:
-        ax.set_title(title) 
+        ax.set_title(f"{title} - MAPE: {mape:.2f}%") 
