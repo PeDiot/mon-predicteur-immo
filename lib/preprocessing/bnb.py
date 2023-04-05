@@ -203,7 +203,8 @@ def preprocess(df: DataFrame, parcelle_ids: List[str]) -> DataFrame:
     
     bnb = bnb.rename(columns={"alea": "alea_argiles"})
 
-    bnb = bnb[BNB_SELECTED_VARS]
+    to_select = ["parcelle_id"] + BNB_SELECTED_VARS
+    bnb = bnb[to_select]
    
     return bnb
 
@@ -220,6 +221,7 @@ def create_dvfplus(dvf: DataFrame, bnb: DataFrame) -> DataFrame:
     parcelle_ids = select_dvf_parcelle_ids(dvf)
 
     bnb = preprocess(bnb, parcelle_ids) 
+
     dvfplus = pd.merge(
         dvf,
         bnb, 

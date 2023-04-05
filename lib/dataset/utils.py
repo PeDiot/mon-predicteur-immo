@@ -131,12 +131,18 @@ def calc_movav_prices(
         .shift(lag)
 
     if neighborhood_var != None: 
-        avg_prices = avg_prices.groupby(neighborhood_var)
-
-    mov_avg_prices = avg_prices\
-        .apply(lambda x: x.rolling(window_size).mean())\
-        .reset_index()\
-        .rename(columns={price_var: f"{price_var}_ma{window_size}"})
+        mov_avg_prices = avg_prices\
+            .groupby(neighborhood_var)\
+            .apply(lambda x: x.rolling(window_size).mean())\
+            .reset_index()\
+            .rename(columns={price_var: f"{price_var}_ma{window_size}"})
+        
+    else:
+        mov_avg_prices = avg_prices\
+            .rolling(window_size)\
+            .mean()\
+            .reset_index()\
+            .rename(columns={price_var: f"{price_var}_ma{window_size}"})
 
     return mov_avg_prices
 
