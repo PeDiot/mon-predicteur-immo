@@ -62,7 +62,7 @@ def get_distance_park(loc : tuple, df: DataFrame)-> DataFrame:
     Compute the distance between the flat and the nearest transport station
     
     loc: (48.856079, 2.386354) 
-    df[Location'] is necessary
+    df['Location'] is necessary
     """
     tmp = []
     
@@ -78,17 +78,17 @@ def get_distance_park_metro(coord, df_dvf, df_transport, df_ev):
 
     return distance_metro, distance_park
 
-#import zipfile
-#path = r'C:\Users\flore\OneDrive\Bureau\2023\Drive\_Projects\Business Data Challenge'
-#zf = zipfile.ZipFile(path + '\\dvf+.zip')
-#df_dvf = pd.read_csv(zf.open('dvf+/Paris_flats.csv'))
-#df_transport = pd.read_csv(path + '\\TransportIDF.csv')
-#df_ev = pd.read_csv(path+'\\all_distances_parcs.csv')
 
-#coord = (48.856079, 2.386354)
-#get_distance_metro(coord, df_transport)
-#get_distance_park(coord, df_ev)
-#get_distance_park_metro(coord, df_dvf, df_transport, df_ev)
+# Test lib: 
+# path = r'C:\Users\flore\OneDrive\Bureau\2023\Drive\_Projects\Business Data Challenge'
+# df_dvf = pd.read_csv(path + '/Paris_flats_v4.csv')
+
+# df_transport = pd.read_csv(path + '\\TransportIDF.csv')
+# df_ev = pd.read_csv(path+'\\all_distances.csv')
+# coord = (48.856079, 2.386354)
+# get_distance_metro(coord, df_transport) # work 
+# get_distance_park(coord, df_ev) # work
+# get_distance_park_metro(coord, df_dvf, df_transport, df_ev) # work
 
 
 
