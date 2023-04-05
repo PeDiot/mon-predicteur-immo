@@ -18,3 +18,4 @@ lib/
 | `preprocessing/`  | Pré-traitement des bases de données `DVF` et `BNB`  |
 | `dataset/`  | Création dataset pour modèles, feature selection, train/test split |
 | `model/` |  Régresseurs `sklearn` & `pytorch`, optimisation, évaluation résultats |
+
