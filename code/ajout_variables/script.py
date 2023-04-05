@@ -93,7 +93,6 @@ df_ev = pd.read_csv(path+'\\all_distances_parcs.csv')
 df_dvf3 = pd.read_csv(path+'\\Paris_flats_v3.csv')
 df_dvf3 = df_dvf3.rename(columns={"Distance": "Distance_transport"})
 
-
 df_dvf3['Geo loc'] = list(zip(df_dvf3['latitude'].astype(str), df_dvf3['longitude'].astype(str)))
 
 # Préparing data: 
@@ -108,7 +107,6 @@ df_ev['Location'] = list(zip(df_ev['lat'].astype(str), df_ev['long'].astype(str)
 # check : 
 distance(df_dvf3['Geo loc'][0], df_ev['Location'][1])
 distance(df_dvf3['Geo loc'][1], df_ev['Location'][10])
-
 
 df_dvf3['Distance_Park'] = 0
 c = 0
@@ -126,17 +124,3 @@ for i in range (1, len(df_dvf3)):
 df_dvf3['Distance_Park'].describe()
 df_dvf3.shape
 df_dvf3.to_csv(path+'\\Paris_flats_v4.csv')
-
-###
-
-
-
-df_dvf4 = df_dvf4.rename(columns={"Distance": "Distance_park"})
-
-VARS = ['id_mutation', 'Distance_park']
-df_dvf5 = df_dvf4.loc[:, df_dvf4.columns.isin(VARS)]
-
-dvf = pd.read_csv(path+'\\Paris_flats_v2.csv')
-dvf_v2 = pd.merge(dvf, df_dvf5, left_on=['id_mutation'], right_on=['id_mutation'], how='left')
-
-dvf_v2
