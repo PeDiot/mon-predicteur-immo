@@ -79,3 +79,6 @@ all_distances = Geo_Shape_Mean(df4)
 all_distances = pd.DataFrame(all_distances, columns = ['Location'])
 
 all_distances.to_csv(path + '//all_distances_parcs.csv', index = False)
+df_ev = pd.read_csv(path + '//all_distances_parcs.csv')
+df_ev['Location'] = list(zip(df_ev['lat'].astype(str), df_ev['long'].astype(str)))
+df_ev.to_csv(path + '//all_distances.csv', index = False)
