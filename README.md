@@ -6,7 +6,27 @@ Constuire un outil de prédiction des prix des biens immobiliers en France à pa
 
 ## Données
 
-La base de données [`dvf+`](https://drive.google.com/drive/folders/106JJF6v_Z3dLZpjdX3Qr_FXqwBcMmA-j?usp=share_link) est constuite à partir des base de données Demandes de Valeurs Foncières (`dvf`) et Base Nationale des Bâtiments (`bnb`). Elle se compose de plusieurs tables ayant pour nom `[geo_area]_[property_type].csv`. 
+La base de données [`dvf+`](https://drive.google.com/drive/folders/106JJF6v_Z3dLZpjdX3Qr_FXqwBcMmA-j?usp=share_link) est constuite à partir des base de données Demandes de Valeurs Foncières (`dvf`) et Base Nationale des Bâtiments (`bnb`). Elle se compose de plusieurs tables ayant pour nom `[geo_area]_[property_type].csv`.
+
+Les zones géographiques contenues dans `dvf+` sont les suivantes : 
+
+- `Paris` 
+- `Marseille` 
+- `Lyon` 
+- `Toulouse` 
+- `Nice` 
+- `Nantes` 
+- `Montpellier` 
+- `Bordeaux` 
+- `Lille` 
+- `Rennes`
+- `urban_areas` (toutes les zones urbaines différentes des villes ci-dessus)
+- `rural_areas` (toutes les zones rurales). 
+
+Les types de propriété contenus dans `dvf+` sont :
+
+- `flats`
+- `houses`
 
 Pour importer une table de la base de données `dvf+`: 
 
