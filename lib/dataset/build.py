@@ -15,6 +15,7 @@ from typing import (
 
 from lib.enums import (
     DVF_SELECTED_VARS, 
+    DVF_LOCATION_VARS,
     BNB_SELECTED_VARS, 
     OTHER_VARS, 
     DISCRETE_VARS, 
@@ -46,9 +47,11 @@ def prepare_dataset(
     target_var: str,
     numeric_filters: Optional[Dict]=None,
     na_threshold: float=.2, 
+    ma_lag: int=1, 
     date_var: str="date_mutation",
     mov_av_windows: Optional[List]=None, 
     neighborhood_var: Optional[str]=None, 
+    keep_location_vars: bool=False,
     print_summary: bool=True, 
     return_var_names: bool=True
 ) -> Tuple:
@@ -59,9 +62,11 @@ def prepare_dataset(
         target_var (str): name of target variable.
         numeric_filters (Dict): dictionary with quantitative variables and their intervals.
         na_threshold (float): threshold for removing columns with too many missing values.
+        ma_lag (int): lag for moving average calculation.
         date_var (str): name of date column.
         mov_av_winddows (Optional[List]): list of moving average windows.
         neighborhood_var (Optional[str]): name of neighborhood column.
+        keep_location_vars (bool): whether to keep location variables.
         print_summary (bool): whether to print summary of dataset preparation.
         return_var_names (bool): whether to return list of variables from DVF, BNB and other variables.
         
@@ -75,6 +80,9 @@ def prepare_dataset(
 
     # Instantiate objects to keep track of changes in dataset columns
     dvf_vars_updated = [col for col in df.columns if col in DVF_SELECTED_VARS]
+    if keep_location_vars:
+        dvf_vars_updated.extend(DVF_LOCATION_VARS)
+
     bnb_vars_updated = [col for col in df.columns if col in BNB_SELECTED_VARS]
     other_vars_updated = [col for col in df.columns if col in OTHER_VARS]
 
@@ -190,7 +198,7 @@ def prepare_dataset(
     if mov_av_windows != None: 
 
         for window in mov_av_windows: 
-            tmp = calc_movav_prices(df, window, 1, "valeur_fonciere", date_var, neighborhood_var)
+            tmp = calc_movav_prices(df, window, ma_lag, "valeur_fonciere", date_var, neighborhood_var)
             df = add_movav_prices(df, tmp, date_var, neighborhood_var) 
 
             ma_var = f"valeur_fonciere_ma{window}"
@@ -229,6 +237,7 @@ def prepare_dummies(
     df: DataFrame, 
     categorical_vars: List,
     reference_levels: Dict, 
+    remove_cols_with_one_value: bool=True,
     dvf_vars: Optional[List]=None,    
     bnb_vars: Optional[List]=None, 
     other_vars: Optional[List]=None
@@ -239,6 +248,7 @@ def prepare_dummies(
         df (DataFrame): pandas DataFrame with DVF+ data.
         categorical_vars (List): list of categorical variables.
         reference_levels (Dict): dictionary with categorical variables and their reference levels.
+        remove_cols_with_one_value (bool): whether to remove columns with only one value.
         dvf_vars (Optional[List]): list of variables from DVF.
         bnb_vars (Optional[List]): list of variables from BNB.
         other_vars (Optional[List]): list of other variables.
@@ -307,22 +317,24 @@ def prepare_dummies(
 
                 summary["removed"].append(dum)
 
-    to_remove = get_cols_with_one_value(df)
+    if remove_cols_with_one_value:
+        cols = [col for col in df.columns if col not in DVF_LOCATION_VARS]
+        to_remove = get_cols_with_one_value(df, cols)
 
-    if len(to_remove) > 0:
-        df = df.drop(labels=to_remove, axis=1)
+        if len(to_remove) > 0:
+            df = df.drop(labels=to_remove, axis=1)
 
-        if dvf_vars is not None and bnb_vars is not None: 
-            summary["removed"].extend(to_remove)
+            if dvf_vars is not None and bnb_vars is not None: 
+                summary["removed"].extend(to_remove)
 
-            for col in to_remove:
+                for col in to_remove:
 
-                if col in bnb_vars:
-                    bnb_vars.remove(col)
-                elif col in dvf_vars:
-                    dvf_vars.remove(col)
-                elif other_vars is not None and col in other_vars: 
-                    other_vars.remove(col)
+                    if col in bnb_vars:
+                        bnb_vars.remove(col)
+                    elif col in dvf_vars:
+                        dvf_vars.remove(col)
+                    elif other_vars is not None and col in other_vars: 
+                        other_vars.remove(col)
 
     if dvf_vars is not None and bnb_vars is not None: 
 

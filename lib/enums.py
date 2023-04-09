@@ -1,4 +1,6 @@
-# DVF enums
+# geo enums
+
+GOOGLE_API_KEY = "AIzaSyCv3ofdclYDumBh63XHe0IkFG4_fjhZrIs"
 
 CITIES = [
     "Paris", 
@@ -45,6 +47,54 @@ YEARS = [
     2022
 ]
 
+AVAILABLE_GEO_AREAS = {
+    "flats": [
+        "bordeaux",
+        "essonne",
+        "hauts-de-seine",
+        "lille",
+        "lyon",
+        "marseille",
+        "montpellier",
+        "nantes",
+        "nice",
+        "paris",
+        "rennes",
+        "seine-saint-denis",
+        "toulouse",
+        "val-d'oise",
+        "val-de-marne",
+        "val-d_oise",
+        "yvelines"
+    ],
+    "houses": [
+        "bordeaux",
+        "hauts-de-seine",
+        "lille",
+        "lyon",
+        "marseille",
+        "montpellier",
+        "nantes",
+        "nice",
+        "rennes",
+        "seine-saint-denis",
+        "toulouse",
+        "val-de-marne",
+        "yvelines"
+    ]
+}
+
+AVAILABLE_DEPARTMENTS = {
+    91: "essonne",
+    92: "hauts-de-seine",
+    93: "seine-saint-denis",
+    95: "val-d'oise",
+    94: "val-de-marne",
+    78: "yvelines"
+}
+
+# DVF enums
+
 DVF_PARCELLE_KEY = "id_parcelle"
 
 DVF_SELECTED_VARS = [
@@ -60,6 +110,8 @@ DVF_SELECTED_VARS = [
     "trimestre",
     "mois",
 ]
+
+DVF_LOCATION_VARS = ["adresse_numero", "adresse_nom_voie", "code_postal", "longitude", "latitude"]
 
 # BNB enums
 
