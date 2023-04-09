@@ -1,4 +1,4 @@
-# Business Data Challenge - Outil de Prédiction des Prix des Biens Immobiliers 
+# Outil de Prédiction des Prix des Biens Immobiliers 
 
 ## Objectif
 
@@ -171,4 +171,32 @@ model_loader = load_model(
     path="./backup/models",
     estimator_name="XGBRegressor", 
     **backup_args)
+```
+
+## Prédiction
+
+Le module [`inference`](./lib/inference/) permet d'utiliser les modèles déjà entrainés pour prédire le prix de nouveaux biens. Les zones géographiques disponibles pour la prédiction sont renseignées dans [`enums`](./lib/enums.py). Voici un exemple d'utilisation du module `inference`: 
+
+```python 
+from lib.inference import Prediction
+
+user_args = {
+    "property_type": "flats",
+    "street_number": 11,
+    "street_name": "Rue des Halles",
+    "zip_code": 75001,
+    "city" : "Paris",
+    "num_rooms": 2,
+    "surface": 30,
+    "field_surface": 0,
+    "dependance": 0
+}
+
+prediction = Prediction(user_args)
+prediction.load_data(data_dir="./data/")
+prediction.load_model(backup_dir="./backup/models/")
+    Succesfully loaded XGBRegressor, feature names and metrics from ./backup/models//xgbregressor-paris-flats-v0.pkl.
+    
+pred_price = prediction.predict()
+    100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 4/4 [00:00<00:00,  5.91it/s] 
 ```
