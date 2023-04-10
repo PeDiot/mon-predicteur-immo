@@ -68,7 +68,7 @@ class Prediction:
     >>> prediction
     >>> Prediction(user_args={'property_type': 'flats', 'street_number': 11, 'street_name': 'Rue des Halles', 'zip_code': 75001, 'city': 'Paris', 'num_rooms': 2, 'surface': 30, 'field_surface': 0, 'dependance': 0})
     >>> prediction.load_data(data_dir="./data/")
-    >>> prediction.load_model(backup_dir="./backup/models/")
+    >>> prediction.load_model(model_dir="./backup/models/")
     Succesfully loaded XGBRegressor, feature names and metrics from ./backup/models//xgbregressor-paris-flats-v0.pkl.
     >>> pred_price = prediction.predict()
     100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 4/4 [00:00<00:00,  5.91it/s] 
@@ -134,13 +134,13 @@ class Prediction:
         else: 
             self.df = df.loc[df["code_departement"]==department_code, :]
 
-    def load_model(self, backup_dir: str): 
+    def load_model(self, model_dir: str): 
         """Description. Load model from backup directory.
         
         Details: model contains CustomRegressor, feature names and metrics."""
 
         self.model_loader = load_model(
-            path=backup_dir, 
+            path=model_dir, 
             estimator_name="XGBRegressor", 
             version=0, 
             property_type=self.user_args["property_type"],
@@ -180,29 +180,26 @@ class Prediction:
         if len(trend_prices_vars) > 0:
             self._last_trend_prices = fetch_last_trend_prices(self.df, trend_prices_vars)
 
-    def __fetch_closest_properties(self): 
-        """Description. Fetch closest properties based on user's location.
+    def __fetch_close_properties(self): 
+        """Description. Fetch close properties based on user's location.
         
         Details: only if user's real estate is a flat."""
 
-        if self.user_args["property_type"] == "flats":
+        gmaps = activate_gmaps() 
+        lng, lat = get_user_location(gmaps, self.user_args)        
 
-            gmaps = activate_gmaps()
+        self.user_args["longitude"] = lng
+        self.user_args["latitude"] = lat
 
-            lng, lat = get_user_location(gmaps, self.user_args)
-
-            self.user_args["longitude"] = lng
-            self.user_args["latitude"] = lat
-
-            close_properties = return_close_properties(self.df, self.user_args)
-            self._closest_property = find_closest(close_properties, self.user_args)
+        self.close_properties = return_close_properties(self.df, self.user_args)
+        self._closest_property = find_closest(self.close_properties, self.user_args)
 
     def predict(self) -> float:
         """Description. Predict price based on user's attributes."""
 
         funs = [
             self.__preprocess, 
-            self.__fetch_closest_properties, 
+            self.__fetch_close_properties, 
             prepare_feature_vector, 
             get_predicted_price
         ]
@@ -225,6 +222,15 @@ class Prediction:
                 price_pred = get_predicted_price(model, self._X)
             else: 
                 fun()
-
+        
         return price_pred
+
+    def fecth_mape(self) -> float:
+        """Description. Fetch MAPE of the model."""
+
+        estimator_name = self.model_loader["model"].estimator.__class__.__name__
+        metrics = self.model_loader["metrics"]["all"]
+        mape = metrics[estimator_name]["mean_absolute_percentage_error"]      
+
+        return mape
         

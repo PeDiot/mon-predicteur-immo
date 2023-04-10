@@ -1,5 +1,6 @@
 from typing import List, Dict
 import pickle as pkl
+import os
 
 from .estimator import CustomRegressor
 
@@ -61,9 +62,13 @@ def load_model(
     file_name = f"{estimator_name}-{geo_area}-{property_type}-v{version}.pkl".lower()
     file_path = f"{path}/{file_name}"
 
-    with open(file_path, "rb") as f: 
-        to_load = pkl.load(f)
+    if not os.path.exists(file_path):
+        to_load = None
 
-    print(f"Succesfully loaded {estimator_name}, feature names and metrics from {file_path}.")
+    else:
+        with open(file_path, "rb") as f: 
+            to_load = pkl.load(f)
+
+        print(f"Succesfully loaded {estimator_name}, feature names and metrics from {file_path}.")
 
     return to_load

@@ -50,7 +50,6 @@ YEARS = [
 AVAILABLE_GEO_AREAS = {
     "flats": [
         "bordeaux",
-        "essonne",
         "hauts-de-seine",
         "lille",
         "lyon",
@@ -64,12 +63,10 @@ AVAILABLE_GEO_AREAS = {
         "toulouse",
         "val-d'oise",
         "val-de-marne",
-        "val-d_oise",
-        "yvelines"
+        "val-d_oise"
     ],
     "houses": [
         "bordeaux",
-        "hauts-de-seine",
         "lille",
         "lyon",
         "marseille",
@@ -77,10 +74,7 @@ AVAILABLE_GEO_AREAS = {
         "nantes",
         "nice",
         "rennes",
-        "seine-saint-denis",
         "toulouse",
-        "val-de-marne",
-        "yvelines"
     ]
 }
 

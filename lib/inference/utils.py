@@ -26,9 +26,12 @@ from pandas.core.series import Series
 
 import pandas as pd 
 import numpy as np
+from datetime import datetime
 
 from googlemaps.client import Client
 from geopy.distance import geodesic
+
+TODAY = datetime.today().strftime("%Y-%m-%d")
 
 def extract_department_code(zip_code: int) -> int: 
     """Description. Extract department code from zip code."""
@@ -116,7 +119,7 @@ def select_features(df: DataFrame, model_loader: Dict) -> DataFrame:
     Returns:
         DataFrame: Dataframe with selected features."""
     
-    to_select = ["id_mutation", "date_mutation"]
+    to_select = ["id_mutation", "date_mutation", "valeur_fonciere", "type_local"]
     to_select.extend(DVF_LOCATION_VARS)
     to_select.extend(model_loader["feature_names"])
 
@@ -243,7 +246,7 @@ def get_imputed_values(df: DataFrame, model_loader: Dict) -> DataFrame:
         x = df[var]
 
         if is_dummy(x):
-            val = get_most_frequent_levels(df, var)[var]
+            val = get_most_frequent_levels(df, [var])[var]
 
         else: 
             val = x.median()
@@ -259,6 +262,19 @@ def check_num_rooms(num_rooms: int, var: str) -> float:
         return 1.
     else: 
         return 0.
+    
+def get_quarter(date: str) -> str:
+    """Description. Return quarter from date."""
+    
+    date = pd.to_datetime(date)
+    quarter = (date.month - 1) // 3 + 1 
+    return str(quarter)
+
+def get_month(date: str) -> str:
+    """Description. Return month from date."""
+    
+    date = pd.to_datetime(date)
+    return str(date.month)
 
 def prepare_feature_vector(
     df: DataFrame, 
@@ -284,20 +300,25 @@ def prepare_feature_vector(
 
     if closest is None or closest.distance > 0:
         imputed_values = get_imputed_values(df, model_loader) 
-    
     else: 
         imputed_values = closest 
 
     for var in selected_features: 
-        
+
         if var not in closest.index:
             X[var] = 0
 
         elif "nombre_pieces_principales" in var:
                 X[var] = check_num_rooms(user_args["num_rooms"], var)
 
+        elif var == "surface_reelle_bati":
+            X[var] = user_args["surface"]
+
         elif var == "l_surface_reelle_bati":
             X[var] = np.log(user_args["surface"])
+
+        elif var == "surface_terrain":
+            X[var] = user_args["field_surface"]
 
         elif var == "l_surface_terrain":
             X[var] = np.log(user_args["field_surface"])
@@ -307,6 +328,14 @@ def prepare_feature_vector(
 
         elif last_trend_prices is not None and var in last_trend_prices.keys():
             X[var] = last_trend_prices[var]
+
+        elif "trimestre" in var:
+            quarter = get_quarter(TODAY)
+            X[var] = 1 if quarter in var else 0
+
+        elif "mois" in var:
+            month = get_month(TODAY)
+            X[var] = 1 if month in var else 0
 
         else: 
             X[var] = imputed_values[var]

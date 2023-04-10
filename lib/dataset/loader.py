@@ -12,8 +12,7 @@ def load_dvfplus(
     zip_dir: str, 
     zip_name: str, 
     geo_area: str, 
-    property_type: str, 
-    augmented: bool=False,
+    property_type: str
 ) -> DataFrame: 
     """Description. Load DVF+ table from zip folder.
 
@@ -22,8 +21,7 @@ def load_dvfplus(
         zip_name (str): name of zip folder containing DVF+.
         geo_area (str): name of geographical area.
         property_type (str): name of property type.
-        augmented (bool): whether to load augmented data or not.
-
+        
     Returns:
         DataFrame: DVF+ pandas DataFrame.
         
@@ -50,10 +48,6 @@ def load_dvfplus(
     zip_folder = ZipFile(zip_dirpath)
 
     file_name = f"{zip_name}/{geo_area}_{property_type}"
-
-    if augmented:
-        file_name += "_augmented"
-
     df = pd.read_csv(zip_folder.open(file_name + ".csv"))
 
     return df
