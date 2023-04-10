@@ -1,8 +1,21 @@
-# Outil de Prédiction des Prix des Biens Immobiliers 
+# Mon Prédicteur Immo
 
 ## Objectif
 
-Constuire un outil de prédiction des prix des biens immobiliers en France à partir de modèles de Machine Learning. L'approche choisie consiste à séparer les maisons des appartements ainsi que les zones géographiques. L'outil est donc une collection de modèles de régression par type de bien et zone géographique. 
+Mon Prédicteur Immo est un outil de prédiction des prix des biens immobiliers en France à partir de modèles de Machine Learning. L'approche choisie consiste à séparer les maisons des appartements ainsi que les zones géographiques. L'outil est donc une collection de modèles de régression par type de bien et zone géographique. 
+
+## App
+
+Pour lancer l'application: 
+
+```
+git clone https://github.com/PeDiot/mon-predicteur-immo
+cd mon-predicteur-immo
+pip install -r requirements.txt
+streamlit run app.py
+```
+
+![](imgs/app.png)
 
 ## Données
 
