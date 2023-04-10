@@ -25,16 +25,18 @@ def generate_geo_areas_map():
 
     for geo_area, coords in AVAILABLE_GEO_AREAS_COORDS.items():
             
+            msg = f"{geo_area.capitalize()} : "
+
             if geo_area in AVAILABLE_GEO_AREAS["flats"] and geo_area in AVAILABLE_GEO_AREAS["houses"]:
-                msg = "Appartements & Maisons"
+                msg += "Appartements & Maisons"
                 color = "blue"
 
             elif geo_area in AVAILABLE_GEO_AREAS["flats"]:
-                msg = "Appartements"
+                msg += "Appartements"
                 color = "green"
 
             elif geo_area in AVAILABLE_GEO_AREAS["houses"]:
-                msg = "Maisons"
+                msg += "Maisons"
                 color = "orange"
     
             # add a marker on the map
