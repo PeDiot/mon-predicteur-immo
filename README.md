@@ -62,6 +62,7 @@ lib/
 ├── preprocessing/
 ├── model/
 └── dataset/
+└── inference/
 ```
 
 ### Description des modules
@@ -73,11 +74,13 @@ lib/
 | [`preprocessing/`](./lib/preprocessing/)  | Pré-traitement des bases de données `dvf` et `bnb`  |
 | [`dataset/`](./lib/dataset/)  | Création dataset pour modèles, feature selection, train/test split |
 | [`model/`](./lib/model/) |  Régresseurs `sklearn` & `pytorch`, optimisation, évaluation résultats |
+| [`inference/`](./lib/inference/) |  Prédiction du prix de nouveaux biens |
 
 ### Exemples d'utilisation 
 
 - [`sk_regressors`](./analysis/sk_regressors.ipynb) : entrainement de modèles de régressions `sklearn` pour une zone géographique et un type de bien données
 - [`bnb_cleaning`](./cleaning/bnb_cleaning.ipynb) : pré-traitement de la base de données `bnb` avant la création de `dvf+`
+- [`app`](app.py) : application `streamlit` pour estimer le prix de biens immobiliers via `lib`
 
 ## Résultats 
 
