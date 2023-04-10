@@ -62,8 +62,7 @@ AVAILABLE_GEO_AREAS = {
         "seine-saint-denis",
         "toulouse",
         "val-d'oise",
-        "val-de-marne",
-        "val-d_oise"
+        "val-de-marne"
     ],
     "houses": [
         "bordeaux",
@@ -76,6 +75,23 @@ AVAILABLE_GEO_AREAS = {
         "rennes",
         "toulouse",
     ]
+}
+
+AVAILABLE_GEO_AREAS_COORDS = {
+    "bordeaux": [44.837789, -0.57918],
+    "hauts-de-seine": [48.815573, 2.224199],
+    "lille": [50.62925, 3.057256],
+    "lyon": [45.764043, 4.835659],
+    "marseille": [43.296482, 5.36978],
+    "montpellier": [43.610769, 3.876716],
+    "nantes": [47.218371, -1.553621],
+    "nice": [43.710173, 7.261953],
+    "paris": [48.856614, 2.352222],
+    "rennes": [48.117266, -1.677793],
+    "seine-saint-denis": [48.941, 2.3959],
+    "toulouse": [43.604652, 1.444209],
+    "val-d'oise": [49.0138, 2.0708],
+    "val-de-marne": [48.8, 2.4]
 }
 
 AVAILABLE_DEPARTMENTS = {
