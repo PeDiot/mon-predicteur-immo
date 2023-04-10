@@ -6,7 +6,7 @@ import numpy as np
 
 from lib.inference import Prediction
 
-# Set title of the app
+# Set title and caption 
 
 APP_TITLE = "Mon Prédicteur Immo"
 ICON = ":house_with_garden:"
@@ -25,16 +25,16 @@ columns = st.sidebar.columns(2)
 
 with columns[0]:
     property_type = st.selectbox("Type de Bien", ["Appartement", "Maison"], index=0)
-    street_number = st.number_input("Numéro de Rue", min_value=0, value=11)
-    street_name = st.text_input("Nom de Rue", value="Rue des Halles")
-    zip_code = st.text_input("Code Postal", value="75001")
-    city = st.text_input("Ville", value="Paris")
-
-with columns[1]:
     num_rooms = st.number_input("Nombre de Pièces", min_value=1, value=2)
     surface = st.number_input("Surface (m²)", min_value=0, value=30)
     field_surface = st.number_input("Surface du Terrain (m²)", min_value=0, value=0)
     dependance = st.selectbox("Dépendance", ["Oui", "Non"], index=1)
+
+with columns[1]:
+    street_number = st.number_input("Numéro de Rue", min_value=0, value=11)
+    street_name = st.text_input("Nom de Rue", value="Rue des Halles")
+    zip_code = st.text_input("Code Postal", value="75001")
+    city = st.text_input("Ville", value="Paris")
 
 st.sidebar.markdown("")
 st.sidebar.markdown("")
@@ -83,7 +83,7 @@ if check_prediction_widget:
             # Predict the price
             pred_price = prediction.predict()
 
-            # Display predicted price and map on the right
+            # Display predicted price and model error
             st.subheader("Notre estimation")
             st.caption("L'estimation est basée sur les données de vente de biens similaires dans votre zone géographique.")
             
@@ -91,7 +91,7 @@ if check_prediction_widget:
 
             with col1:
                 st.metric(
-                    label=":moneybag: Prix estimé",
+                    label="Prix estimé :moneybag:",
                     value=f"{int(pred_price):,}€"
                 )
 
@@ -102,16 +102,15 @@ if check_prediction_widget:
                     value=f"{round(100 * mape, 2)}%"
                 )
 
-            # # Create a folium map centered on the user's property
-
             n_close_properties = len(prediction.close_properties)
             
+            # Display map with close properties and user property
             if n_close_properties > 0:
 
-                avg_price = prediction.close_properties.valeur_fonciere.mean()
+                median_price = prediction.close_properties.valeur_fonciere.median()
 
                 st.subheader("Près de chez vous")
-                st.caption(f"Les {property_type.lower()}s les plus proches de votre bien présents dans notre base de données. **Le prix moyen est de {int(avg_price):,}€**.")
+                st.caption(f"Les {property_type.lower()}s les plus proches de votre bien présents dans notre base de données. **Le prix médian est de {int(median_price):,}€**.")
             
                 user_location = [
                     prediction.user_args["latitude"], prediction.user_args["longitude"]
@@ -123,20 +122,19 @@ if check_prediction_widget:
                     zoom_start=15
                 )
 
-                # Add marker for the user's property
                 folium.Marker(
                     location=user_location,
-                    popup=f"Votre bien estimé à {int(pred_price):,}€",
+                    popup=f"Votre bien estimé à {int(pred_price):,}€ (2023)",
                     icon=folium.Icon(color="black", icon="home")
                 ).add_to(map)
 
-                # Add markers for the close properties
                 if len(prediction.close_properties) > 20: 
                     prediction.close_properties = prediction.close_properties.sample(20)
 
                 for _, row in prediction.close_properties.iterrows():
                     surface = np.exp(row["l_surface_reelle_bati"])
-                    label = f"{int(surface):,} m² à {int(row.valeur_fonciere):,}€"
+                    year = row.date_mutation.split("-")[0]
+                    label = f"{int(surface):,} m² à {int(row.valeur_fonciere):,}€ ({year})"
 
                     folium.Marker(
                         location=[row["latitude"], row["longitude"]],
