@@ -245,8 +245,9 @@ def get_imputed_values(df: DataFrame, model_loader: Dict) -> DataFrame:
 
     for var in model_loader["feature_names"]:
         
-        if not var.startswith("l_"):
+        if not var.startswith("l_") and var in BNB_SELECTED_VARS + OTHER_VARS:
             to_impute.append(var)
+
         elif var.startswith("l_") and remove_l_prefix(var) in BNB_SELECTED_VARS + OTHER_VARS:
             to_impute.append(var)
        
