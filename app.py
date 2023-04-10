@@ -5,6 +5,37 @@ from streamlit_folium import folium_static
 import numpy as np 
 
 from lib.inference import Prediction
+from lib.enums import AVAILABLE_GEO_AREAS, AVAILABLE_GEO_AREAS_COORDS
+
+# Functions
+
+@st.cache_data 
+def generate_geo_areas_map():
+
+    map = folium.Map(location=[46.2276, 2.2137], zoom_start=6)
+
+    for geo_area, coords in AVAILABLE_GEO_AREAS_COORDS.items():
+            
+            if geo_area in AVAILABLE_GEO_AREAS["flats"] and geo_area in AVAILABLE_GEO_AREAS["houses"]:
+                msg = "Appartements & Maisons"
+                color = "blue"
+
+            elif geo_area in AVAILABLE_GEO_AREAS["flats"]:
+                msg = "Appartements"
+                color = "green"
+
+            elif geo_area in AVAILABLE_GEO_AREAS["houses"]:
+                msg = "Maisons"
+                color = "orange"
+    
+            # add a marker on the map
+            folium.Marker(
+                location=coords,
+                popup=msg,
+                icon=folium.Icon(color=color, icon="info-sign")
+            ).add_to(map)
+
+    folium_static(map, width=725, height=600)
 
 # Set title and caption 
 
@@ -17,7 +48,7 @@ st.set_page_config(page_title=APP_TITLE, page_icon=ICON)
 st.title(f"{ICON} {APP_TITLE}")
 st.caption(APP_CAPTION)
 
-# Sidebar with user input widgets & general information
+# Sidebar with user input widgets & contact information
 
 st.sidebar.title("Pouvez-vous décrire votre bien ?")
 
@@ -46,6 +77,16 @@ for _ in range(7):
 authors = ["**[Florentin](https://github.com/FlorentinLavaud)**", "**[Pierre-Emmanuel](https://github.com/PeDiot)**"]
 authors = " & ".join(authors)
 st.sidebar.markdown(f"**Contact** : {authors}")
+
+# Display map of available geographical areas 
+
+if not check_prediction_widget:
+
+    st.markdown("")
+    st.subheader("Les zones géographiques disponibles")
+
+    map = generate_geo_areas_map()
+    st.pydeck_chart(map)
 
 # Use inputs to predict the price of the real estate
 
@@ -98,7 +139,7 @@ if check_prediction_widget:
             with col2: 
                 mape = prediction.fecth_mape()   
                 st.metric(  
-                    label="Erreur relative :chart_with_upwards_trend:",
+                    label="Marge d'erreur:chart_with_upwards_trend:",
                     value=f"{round(100 * mape, 2)}%"
                 )
 
@@ -119,7 +160,7 @@ if check_prediction_widget:
 
                 map = folium.Map(
                     location=user_location, 
-                    zoom_start=15
+                    zoom_start=6
                 )
 
                 folium.Marker(
