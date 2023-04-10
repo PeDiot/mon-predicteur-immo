@@ -30,7 +30,7 @@ pip install -r requirements.txt
 5. Lancer l'application 
 
 ```
-streamlit run app.py
+streamlit run streamlit_app.py
 ```
 
 ![](imgs/app.png)
