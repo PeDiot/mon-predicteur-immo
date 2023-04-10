@@ -241,10 +241,15 @@ def get_imputed_values(df: DataFrame, model_loader: Dict) -> DataFrame:
         - If variable is a dummy variable, impute with most frequent level.
         - If variable is a continuous variable, impute with median."""
     
-    to_impute = [
-        var for var in model_loader["feature_names"] if remove_l_prefix(var) in BNB_SELECTED_VARS + OTHER_VARS
-    ]
-    
+    to_impute = []
+
+    for var in model_loader["feature_names"]:
+        
+        if not var.startswith("l_"):
+            to_impute.append(var)
+        elif var.startswith("l_") and remove_l_prefix(var) in BNB_SELECTED_VARS + OTHER_VARS:
+            to_impute.append(var)
+       
     imputed_values = {}
     
     for var in to_impute:
@@ -299,7 +304,7 @@ def prepare_feature_vector(
         
     Returns:
         Tuple: Feature vector and selected features."""
-
+    
     selected_features = model_loader["feature_names"]
     X = pd.Series(index=selected_features, dtype="float64")
 
