@@ -5,3 +5,4 @@ data/dvf+.zip
 *.html
 **__pycache__/
 backup/models/
+env/
