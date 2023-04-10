@@ -148,9 +148,9 @@ if check_prediction_widget:
             # Compute model error
             mape = prediction.fecth_mape()  
 
-            # Build confidence interval
-            price_down = (1 - mape) * pred_price
-            price_up = (1 + mape) * pred_price
+             # Build confidence interval
+            price_up = pred_price / (1 - mape)
+            price_down = pred_price / (1 + mape)
 
             # Display predicted price and model error
             st.subheader("Notre estimation")
