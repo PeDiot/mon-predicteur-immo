@@ -3,6 +3,7 @@ import streamlit as st
 from streamlit_folium import folium_static
 
 import numpy as np 
+from typing import Union
 
 from lib.inference import Prediction
 from lib.enums import AVAILABLE_GEO_AREAS, AVAILABLE_GEO_AREAS_COORDS
@@ -47,6 +48,15 @@ def generate_geo_areas_map():
             ).add_to(map)
 
     folium_static(map, width=725, height=600)
+
+def format_number(x: Union[float, int]) -> str: 
+    return format(int(x), ",").replace(",", " ")
+
+def generate_price_metric(price: float, label: str):
+    """Description. Generate a price metric with label and price."""
+
+    st.write(f"<span style='font-size: 14px;'>{label}</span>", unsafe_allow_html=True)
+    st.write(f"<span style='font-size: 16px; font-weight:bold;'>{format_number(price)}€</span>", unsafe_allow_html=True)
 
 # Set title and caption 
 
@@ -135,24 +145,30 @@ if check_prediction_widget:
             # Predict the price
             pred_price = prediction.predict()
 
+            # Compute model error
+            mape = prediction.fecth_mape()  
+
+            # Build confidence interval
+            price_down = (1 - mape) * pred_price
+            price_up = (1 + mape) * pred_price
+
             # Display predicted price and model error
             st.subheader("Notre estimation")
             st.caption("L'estimation est basée sur les données de vente de biens similaires dans votre zone géographique.")
             
-            col1, col2 = st.columns(2)
+            col1, col2, col3 = st.columns(3)
 
             with col1:
+                generate_price_metric(price_down, "Prix bas")
+                
+            with col2: 
                 st.metric(
-                    label="Prix estimé :moneybag:",
-                    value=f"{int(pred_price):,}€"
+                    label="**Prix estimé** :moneybag:",
+                    value=f"{format_number(pred_price)}€"
                 )
 
-            with col2: 
-                mape = prediction.fecth_mape()   
-                st.metric(  
-                    label="Marge d'erreur:chart_with_upwards_trend:",
-                    value=f"{round(100 * mape, 2)}%"
-                )
+            with col3:
+                generate_price_metric(price_up, "Prix haut")
 
             n_close_properties = len(prediction.close_properties)
             
@@ -176,7 +192,7 @@ if check_prediction_widget:
 
                 folium.Marker(
                     location=user_location,
-                    popup=f"Votre bien estimé à {int(pred_price):,}€ (2023)",
+                    popup=f"Votre bien estimé à {format_number(pred_price)}€ (2023)",
                     icon=folium.Icon(color="black", icon="home")
                 ).add_to(map)
 
@@ -186,7 +202,7 @@ if check_prediction_widget:
                 for _, row in prediction.close_properties.iterrows():
                     surface = np.exp(row["l_surface_reelle_bati"])
                     year = row.date_mutation.split("-")[0]
-                    label = f"{int(surface):,} m² à {int(row.valeur_fonciere):,}€ ({year})"
+                    label = f"{int(surface):,} m² à {format_number(row.valeur_fonciere)}€ ({year})"
 
                     folium.Marker(
                         location=[row["latitude"], row["longitude"]],
