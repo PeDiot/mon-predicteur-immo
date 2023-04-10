@@ -6,7 +6,7 @@ Mon Prédicteur Immo est un outil de prédiction des prix des biens immobiliers 
 
 ## App
 
-Il est important de suivre les étapes suivantes pour pouvoir lancer l'application [`app`](app.py).
+Il est important de suivre les étapes suivantes pour pouvoir lancer l'application [`streamlit_app`](streamlit_app.py).
 
 1. Cloner le dépôt github
 
@@ -98,7 +98,7 @@ lib/
 
 - [`sk_regressors`](./analysis/sk_regressors.ipynb) : entrainement de modèles de régressions `sklearn` pour une zone géographique et un type de bien données
 - [`bnb_cleaning`](./cleaning/bnb_cleaning.ipynb) : pré-traitement de la base de données `bnb` avant la création de `dvf+`
-- [`app`](app.py) : application `streamlit` pour estimer le prix de biens immobiliers via `lib`
+- [`streamlit_app`](streamlit_app.py) : application `streamlit` pour estimer le prix de biens immobiliers via `lib`
 
 ## Résultats 
 
