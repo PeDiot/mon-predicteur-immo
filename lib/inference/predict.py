@@ -40,6 +40,8 @@ import pandas as pd
 from tqdm import tqdm
 import googlemaps
 
+import warnings
+warnings.filterwarnings("ignore")
 
 def activate_gmaps() -> googlemaps.Client: 
     """Description. Activate connection to Google Maps API."""
@@ -125,12 +127,10 @@ class Prediction:
             df = add_public_facilities(df, facilities)
             del facilities
 
-        # filter data based on user's location 
         department_code = extract_department_code(self.user_args["zip_code"])
-
+    
         if department_code == 75:
             self.df = df.loc[df["code_postal"]==self.user_args["zip_code"], :]
-
         else: 
             self.df = df.loc[df["code_departement"]==department_code, :]
 

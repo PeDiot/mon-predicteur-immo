@@ -37,7 +37,12 @@ def extract_department_code(zip_code: int) -> int:
     """Description. Extract department code from zip code."""
 
     zip_code_str = str(zip_code)
-    dpt_code = int(zip_code_str[:2])
+    
+    if len(zip_code_str) == 4:
+        dpt_code = int(zip_code_str[0])
+    else:
+        dpt_code = int(zip_code_str[:2])
+        
     return dpt_code 
 
 def find_department(zip_code: int) -> str: 

@@ -9,8 +9,17 @@ from lib.enums import AVAILABLE_GEO_AREAS, AVAILABLE_GEO_AREAS_COORDS
 
 # Functions
 
+def format_zip_code(zip_code: str) -> int: 
+    """Description. Format zip code to correct format."""
+
+    if zip_code.startswith("0"): 
+        zip_code = zip_code[1:]
+    
+    return int(zip_code)
+
 @st.cache_data 
 def generate_geo_areas_map():
+    """Description. Generate a map with all available geo areas and add to cache."""    
 
     map = folium.Map(location=[46.2276, 2.2137], zoom_start=6)
 
@@ -86,7 +95,7 @@ if not check_prediction_widget:
     st.subheader("Les zones géographiques disponibles")
 
     map = generate_geo_areas_map()
-    st.pydeck_chart(map)
+    # st.pydeck_chart(map)
 
 # Use inputs to predict the price of the real estate
 
@@ -95,9 +104,9 @@ if check_prediction_widget:
     # Create a dictionary with user input
     user_args = {
         "property_type": "houses" if property_type == "Maison" else "flats",
-        "street_number": int(street_number),
+        "street_number": street_number,
         "street_name":  street_name,
-        "zip_code": int(zip_code),
+        "zip_code": format_zip_code(zip_code),
         "city" : city,
         "num_rooms": num_rooms,
         "surface": surface,
@@ -160,7 +169,7 @@ if check_prediction_widget:
 
                 map = folium.Map(
                     location=user_location, 
-                    zoom_start=6
+                    zoom_start=13
                 )
 
                 folium.Marker(
