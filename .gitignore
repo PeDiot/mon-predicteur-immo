@@ -6,3 +6,4 @@ data/dvf+.zip
 **__pycache__/
 backup/models/
 env/
+cache/
