@@ -6,12 +6,30 @@ Mon Prédicteur Immo est un outil de prédiction des prix des biens immobiliers 
 
 ## App
 
-Pour lancer l'application: 
+Il est important de suivre les étapes suivantes pour pouvoir lancer l'application [`app`](app.py).
+
+1. Cloner le dépôt github
 
 ```
 git clone https://github.com/PeDiot/mon-predicteur-immo
 cd mon-predicteur-immo
+```
+
+2. Récupérer la base de données `dvf+` [ici](https://drive.google.com/drive/folders/106JJF6v_Z3dLZpjdX3Qr_FXqwBcMmA-j?usp=share_link) et la déposer dans le dossier [`data/`](./data/)
+
+3. Récupérer le dossier `models/` [ici](https://drive.google.com/drive/folders/1IHx-pWICxmMUAIB-oqP3EkCPhqI4fXYL?usp=share_link) et le déposer dans le dossier [`backup/`](./backup/)
+
+4. Exécuter les commandes suivantes pour installer l'environnement virtuel et les librairies nécessaire :
+
+```
+python -m venv env 
+env\Scripts\activate.bat
 pip install -r requirements.txt
+```
+
+5. Lancer l'application 
+
+```
 streamlit run app.py
 ```
 
