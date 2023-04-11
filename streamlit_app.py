@@ -130,7 +130,7 @@ if check_prediction_widget:
     prediction = Prediction(user_args)
 
     if prediction.geo_area is None:
-        st.warning("L'outil de prédiction ne couvre pas encore cette zone.")
+        st.warning(f"L'outil de prédiction ne couvre pas encore cette zone pour les {property_type.lower()}s.")
 
     else: 
 
@@ -139,7 +139,7 @@ if check_prediction_widget:
         prediction.load_model(model_dir="./backup/models/")
 
         if prediction.model_loader is None:
-            st.warning("L'outil de prédiction ne couvre pas encore cette zone.")
+            st.warning(f"L'outil de prédiction ne couvre pas encore cette zone pour les {property_type.lower()}s.")
 
         else:
             # Predict the price
