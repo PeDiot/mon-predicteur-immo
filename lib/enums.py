@@ -62,7 +62,8 @@ AVAILABLE_GEO_AREAS = {
         "seine-saint-denis",
         "toulouse",
         "val-d'oise",
-        "val-de-marne"
+        "val-de-marne", 
+        "essonne"
     ],
     "houses": [
         "bordeaux",
@@ -91,7 +92,9 @@ AVAILABLE_GEO_AREAS_COORDS = {
     "seine-saint-denis": [48.941, 2.3959],
     "toulouse": [43.604652, 1.444209],
     "val-d'oise": [49.0138, 2.0708],
-    "val-de-marne": [48.8, 2.4]
+    "val-de-marne": [48.8, 2.4], 
+    "essonne": [48.485294, 2.197863]
+
 }
 
 AVAILABLE_DEPARTMENTS = {
