@@ -1,8 +1,6 @@
 from lib.enums import (
     AVAILABLE_DEPARTMENTS,
     DVF_LOCATION_VARS, 
-    BNB_SELECTED_VARS, 
-    OTHER_VARS
 )
 
 from lib.dataset.utils import (
@@ -243,17 +241,16 @@ def get_imputed_values(df: DataFrame, model_loader: Dict) -> DataFrame:
     
     to_impute = []
 
-    for var in model_loader["feature_names"]:
-        
-        if not var.startswith("l_") and var in BNB_SELECTED_VARS + OTHER_VARS:
-            to_impute.append(var)
+    to_remove = ["id_mutation", "date_mutation", "valeur_fonciere", "type_local"]
+    to_remove.extend(DVF_LOCATION_VARS)
 
-        elif var.startswith("l_") and remove_l_prefix(var) in BNB_SELECTED_VARS + OTHER_VARS:
-            to_impute.append(var)
+    to_remove = [var for var in to_remove if var in df.columns]
+
+    df.drop(columns=to_remove, inplace=True)
        
     imputed_values = {}
     
-    for var in to_impute:
+    for var in df.columns:
         x = df[var]
 
         if is_dummy(x):
@@ -310,17 +307,19 @@ def prepare_feature_vector(
     X = pd.Series(index=selected_features, dtype="float64")
 
     if closest is None or closest.distance > 0:
+        available_vars = list(df.columns)
         imputed_values = get_imputed_values(df, model_loader) 
     else: 
+        available_vars = list(closest.index)
         imputed_values = closest 
 
     for var in selected_features: 
 
-        if var not in closest.index:
+        if var not in available_vars: 
             X[var] = 0
 
         elif "nombre_pieces_principales" in var:
-                X[var] = check_num_rooms(user_args["num_rooms"], var)
+            X[var] = check_num_rooms(user_args["num_rooms"], var)
 
         elif var == "surface_reelle_bati":
             X[var] = user_args["surface"]
