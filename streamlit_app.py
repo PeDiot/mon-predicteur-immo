@@ -1,14 +1,16 @@
+# deploy with streamlit : https://docs.streamlit.io/knowledge-base/tutorials/databases/gcs
+# app management : https://share.streamlit.io/
+
 import folium
 import streamlit as st
 from streamlit_folium import folium_static
 
 import numpy as np 
+import pickle as pkl
 from typing import Union
 
 from lib.inference import Prediction
 from lib.enums import AVAILABLE_GEO_AREAS, AVAILABLE_GEO_AREAS_COORDS
-
-# Functions
 
 def format_zip_code(zip_code: str) -> int: 
     """Description. Format zip code to correct format."""
@@ -107,7 +109,6 @@ if not check_prediction_widget:
     st.subheader("Les zones géographiques disponibles")
 
     map = generate_geo_areas_map()
-    # st.pydeck_chart(map)
 
 # Use inputs to predict the price of the real estate
 
@@ -187,7 +188,7 @@ if check_prediction_widget:
 
                 map = folium.Map(
                     location=user_location, 
-                    zoom_start=13
+                    zoom_start=15
                 )
 
                 folium.Marker(

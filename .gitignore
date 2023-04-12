@@ -9,3 +9,5 @@ env/
 cache/
 scraping/ 
 *.mp4
+.streamlit/
+Dockerfile
