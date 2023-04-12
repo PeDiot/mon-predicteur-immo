@@ -96,7 +96,7 @@ lib/
 
 ### Exemples d'utilisation 
 
-- [`sk_regressors`](./analysis/sk_regressors.ipynb) : entrainement de modèles de régressions `sklearn` pour une zone géographique et un type de bien données
+- [`sk_regressors`](./training/sk_regressors.ipynb) : entrainement de modèles de régressions `sklearn` pour une zone géographique et un type de bien données
 - [`bnb_cleaning`](./cleaning/bnb_cleaning.ipynb) : pré-traitement de la base de données `bnb` avant la création de `dvf+`
 - [`streamlit_app`](streamlit_app.py) : application `streamlit` pour estimer le prix de biens immobiliers via `lib`
 
