@@ -1,16 +1,19 @@
 # deploy with streamlit : https://docs.streamlit.io/knowledge-base/tutorials/databases/gcs
 # app management : https://share.streamlit.io/
 
+# Imports -----------------------------------------------------------------------------------------
+
 import folium
 import streamlit as st
 from streamlit_folium import folium_static
 
 import numpy as np 
-import pickle as pkl
-from typing import Union
+from typing import Union, Tuple
 
 from lib.inference import Prediction
 from lib.enums import AVAILABLE_GEO_AREAS, AVAILABLE_GEO_AREAS_COORDS
+
+# Functions -----------------------------------------------------------------------------------------
 
 def format_zip_code(zip_code: str) -> int: 
     """Description. Format zip code to correct format."""
@@ -19,6 +22,9 @@ def format_zip_code(zip_code: str) -> int:
         zip_code = zip_code[1:]
     
     return int(zip_code)
+
+def format_number(x: Union[float, int]) -> str: 
+    return format(int(x), ",").replace(",", " ")
 
 @st.cache_data 
 def generate_geo_areas_map():
@@ -51,8 +57,53 @@ def generate_geo_areas_map():
 
     folium_static(map, width=725, height=600)
 
-def format_number(x: Union[float, int]) -> str: 
-    return format(int(x), ",").replace(",", " ")
+def generate_closest_properties_map(prediction: Prediction, property_type: str) -> Tuple:
+    """"Description. Make a map with closest properties and user property.
+    
+    Args:
+        prediction (Prediction): Prediction object.
+        property_type (str): Type of property.
+        
+    Returns:
+        Tuple: Map and caption."""
+
+    user_location = [
+        prediction.user_args["latitude"], prediction.user_args["longitude"]
+    ]
+
+    map = folium.Map(
+        location=user_location, 
+        zoom_start=15
+    )
+
+    folium.Marker(
+        location=user_location,
+        popup=f"Votre bien estimé à {format_number(pred_price)}€ (2023)",
+        icon=folium.Icon(color="black", icon="home")
+    ).add_to(map)
+
+    if prediction.close_properties is None: 
+        caption = "Aucun bien similaire n'a été trouvé dans notre base de données."
+
+    else: 
+        median_price = prediction.close_properties.valeur_fonciere.median()
+        caption = f"Les {property_type.lower()}s les plus proches de votre bien présents dans notre base de données. **Le prix médian est de {format_number(median_price)}€**."
+
+        if len(prediction.close_properties) > 20: 
+            prediction.close_properties = prediction.close_properties.sample(20)
+
+        for _, row in prediction.close_properties.iterrows():
+            surface = np.exp(row["l_surface_reelle_bati"])
+            year = row.date_mutation.split("-")[0]
+            label = f"{int(surface):,} m² à {format_number(row.valeur_fonciere)}€ ({year})"
+
+            folium.Marker(
+                location=[row["latitude"], row["longitude"]],
+                popup=label,
+                icon=folium.Icon(color="blue", icon="info-sign")
+            ).add_to(map)
+
+    return map, caption
 
 def generate_price_metric(price: float, label: str):
     """Description. Generate a price metric with label and price."""
@@ -60,7 +111,7 @@ def generate_price_metric(price: float, label: str):
     st.write(f"<span style='font-size: 14px;'>{label}</span>", unsafe_allow_html=True)
     st.write(f"<span style='font-size: 16px; font-weight:bold;'>{format_number(price)}€</span>", unsafe_allow_html=True)
 
-# Set title and caption 
+# Set title and caption -----------------------------------------------------------------------------------------
 
 APP_TITLE = "Mon Prédicteur Immo"
 ICON = ":house_with_garden:"
@@ -71,7 +122,7 @@ st.set_page_config(page_title=APP_TITLE, page_icon=ICON)
 st.title(f"{ICON} {APP_TITLE}")
 st.caption(APP_CAPTION)
 
-# Sidebar with user input widgets & contact information
+# Sidebar with user input widgets & contact information -----------------------------------------------------------------------------------------
 
 st.sidebar.title("Pouvez-vous décrire votre bien ?")
 
@@ -101,7 +152,7 @@ authors = ["**[Florentin](https://github.com/FlorentinLavaud)**", "**[Pierre-Emm
 authors = " & ".join(authors)
 st.sidebar.markdown(f"**Contact** : {authors}")
 
-# Display map of available geographical areas 
+# Display map of available geographical areas -----------------------------------------------------------------------------------------
 
 if not check_prediction_widget:
 
@@ -110,7 +161,7 @@ if not check_prediction_widget:
 
     map = generate_geo_areas_map()
 
-# Use inputs to predict the price of the real estate
+# Use inputs to fill the app -----------------------------------------------------------------------------------------
 
 if check_prediction_widget:
 
@@ -170,46 +221,12 @@ if check_prediction_widget:
 
             with col3:
                 generate_price_metric(price_up, "Prix haut")
-
-            n_close_properties = len(prediction.close_properties)
             
             # Display map with close properties and user property
-            if n_close_properties > 0:
+            map, caption = generate_closest_properties_map(prediction, property_type)
 
-                median_price = prediction.close_properties.valeur_fonciere.median()
+            st.subheader("Près de chez vous")
+            st.caption(caption) 
 
-                st.subheader("Près de chez vous")
-                st.caption(f"Les {property_type.lower()}s les plus proches de votre bien présents dans notre base de données. **Le prix médian est de {int(median_price):,}€**.")
-            
-                user_location = [
-                    prediction.user_args["latitude"], prediction.user_args["longitude"]
-                ]
-                
-
-                map = folium.Map(
-                    location=user_location, 
-                    zoom_start=15
-                )
-
-                folium.Marker(
-                    location=user_location,
-                    popup=f"Votre bien estimé à {format_number(pred_price)}€ (2023)",
-                    icon=folium.Icon(color="black", icon="home")
-                ).add_to(map)
-
-                if len(prediction.close_properties) > 20: 
-                    prediction.close_properties = prediction.close_properties.sample(20)
-
-                for _, row in prediction.close_properties.iterrows():
-                    surface = np.exp(row["l_surface_reelle_bati"])
-                    year = row.date_mutation.split("-")[0]
-                    label = f"{int(surface):,} m² à {format_number(row.valeur_fonciere)}€ ({year})"
-
-                    folium.Marker(
-                        location=[row["latitude"], row["longitude"]],
-                        popup=label,
-                        icon=folium.Icon(color="blue", icon="info-sign")
-                    ).add_to(map)
-
-                folium_static(map, width=725, height=400)
+            folium_static(map, width=725, height=400)
 
