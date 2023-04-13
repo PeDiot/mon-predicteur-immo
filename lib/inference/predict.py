@@ -92,6 +92,7 @@ class Prediction:
                 self.geo_area = None 
 
         self._last_trend_prices = None
+        self.close_properties = None
         self._closest_property = None
 
     def __repr__(self) -> str:
@@ -192,7 +193,9 @@ class Prediction:
         self.user_args["latitude"] = lat
 
         self.close_properties = return_close_properties(self.df, self.user_args)
-        self._closest_property = find_closest(self.close_properties, self.user_args)
+
+        if self.close_properties is not None:
+            self._closest_property = find_closest(self.close_properties, self.user_args)
 
     def predict(self) -> float:
         """Description. Predict price based on user's attributes."""
@@ -209,6 +212,7 @@ class Prediction:
         loop = tqdm(funs) 
 
         for i, fun in enumerate(loop):
+            print(self.df.shape)
 
             if i == len(funs) - 2: 
                 self._features, self._X = fun(
