@@ -15,7 +15,7 @@ git clone https://github.com/PeDiot/mon-predicteur-immo
 cd mon-predicteur-immo
 ```
 
-2. Récupérer la base de données `dvf+` [ici](https://drive.google.com/drive/folders/106JJF6v_Z3dLZpjdX3Qr_FXqwBcMmA-j?usp=share_link) et la déposer dans le dossier [`data/`](./data/)
+2. Récupérer la base de données `dvf+` et les fichiers du dossier `other` [ici](https://drive.google.com/drive/folders/106JJF6v_Z3dLZpjdX3Qr_FXqwBcMmA-j?usp=share_link) et la déposer dans le dossier [`data/`](./data/)
 
 3. Récupérer le dossier `models/` [ici](https://drive.google.com/drive/folders/1IHx-pWICxmMUAIB-oqP3EkCPhqI4fXYL?usp=share_link) et le déposer dans le dossier [`backup/`](./backup/)
 
