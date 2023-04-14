@@ -112,7 +112,8 @@ AVAILABLE_DEPARTMENTS = {
     93: "seine-saint-denis",
     95: "val-d'oise",
     94: "val-de-marne",
-    78: "yvelines"
+    78: "yvelines", 
+    77: "seine-et-marne", 
 }
 
 # DVF enums
