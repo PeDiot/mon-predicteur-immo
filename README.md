@@ -169,6 +169,10 @@ study.optimize(
 )
 ```
 
+Le graphique suivant présente l'erreur absolue (%) pour chaque appartement de Seine-et-Marne du jeu de données de test. Les droites en pointillés représentent les points (théoriques) pour lesquels la prédiction est parfaite. 
+
+![](imgs/models/error_plot_seine-et-marne_test.png)
+
 ## Sauvegarde & Chargement des modèles
 
 Pour sauvegarder un modèle que l'on vient d'entrainer, le nom des features utilisées et les métriques obtenues, on peut utiliser la fonction  [`save_model`](./lib/model/loader.py). Voici un exemple pour sauvergarder un modèle de type `XGBRegressor` ayant été entrainé sur les appartements à Paris.
