@@ -75,6 +75,7 @@ AVAILABLE_GEO_AREAS = {
         "nice",
         "rennes",
         "toulouse",
+        "essonne", 
     ]
 }
 
