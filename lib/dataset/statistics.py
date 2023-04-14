@@ -1,6 +1,13 @@
 from pandas.core.frame import DataFrame
+
 from rich.table import Table
 import rich 
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+from .utils import transform_price
+from lib.preprocessing.utils import get_na_proportion
 
 def summarize_dataset(df: DataFrame): 
 
@@ -16,7 +23,9 @@ def summarize_dataset(df: DataFrame):
 
     numeric_vars = ["valeur_fonciere_m2", "surface_reelle_bati", "surface_terrain"]
 
-    rich.print("Dataset summary") 
+    print(f"Dataset summary for {tmp.shape[0]:,} observations") 
+
+    print("*" * 80)
 
     na_table = Table(title="Missing values")
 
@@ -29,24 +38,28 @@ def summarize_dataset(df: DataFrame):
 
     rich.print(na_table)
 
-    rich.print("Numeric variables")
+    print("*" * 80)
 
-    summary_numeric_vars = tmp[vars].describe(percentiles=[.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99])
+    print("Numeric variables")
+
+    summary_numeric_vars = tmp[numeric_vars].describe(percentiles=[.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99])
     rich.print(summary_numeric_vars)
      
-    fig, axes = plt.subplots(ncols=3, figsize=(24, 6))
-    fig.suptitle("Valeurs < q99%", fontsize=16)
+    fig, axes = plt.subplots(ncols=2, nrows=2, figsize=(12, 8))
 
-    for var, ax in zip(vars, axes.flatten()): 
-        thresold = summary[var]["99%"]
+    for var, ax in zip(numeric_vars, axes.flatten()): 
+        thresold = summary_numeric_vars[var]["99%"]
 
         x = tmp.loc[tmp[var] < thresold, var].dropna()
         sns.histplot(x, ax=ax, bins=50)
-        ax.set_title(var)
+
+    axes[-1, -1].set_axis_off()
 
     plt.show()
 
-    rich.print("Number of rooms")
+    print("*" * 80)
+
+    print("Number of rooms")
 
     num_rooms_distrib = tmp\
         .nombre_pieces_principales\
