@@ -92,12 +92,12 @@ def get_interval(df: DataFrame, var_name: str, quantiles: Tuple=(.05, .99)) -> T
     interval = tuple(df[var_name].quantile([lower, upper]).values) 
     return interval
 
-def get_numeric_filters(df: DataFrame, user_args: Dict) -> Dict: 
+def get_numeric_filters(df: DataFrame, property_type: str) -> Dict: 
     """Description. Get numeric filters for data preprocessing from user arguments.
     
     Args:
         df (DataFrame): Dataframe to filter. 
-        user_args (Dict): User arguments.
+        property_type (str): Type of property (flats or houses).
         
     Returns:
         Dict: Numeric filters to apply on df"""
@@ -107,8 +107,11 @@ def get_numeric_filters(df: DataFrame, user_args: Dict) -> Dict:
     for var in ("nombre_pieces_principales", "surface_reelle_bati", "valeur_fonciere"):
         filters[var] = get_interval(df, var)
 
-    if user_args["property_type"] == "houses": 
+    if property_type == "houses": 
         filters["surface_terrain"] = get_interval(df, "surface_terrain")
+    
+    elif property_type not in ("flats", "houses"): 
+        raise ValueError(f"Invalid property type: {property_type}.")
 
     return filters
 

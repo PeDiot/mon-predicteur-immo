@@ -158,7 +158,7 @@ class Prediction:
 
         preproc_args = {
             "target_var": "l_valeur_fonciere", 
-            "numeric_filters": get_numeric_filters(self.df, self.user_args),  
+            "numeric_filters": get_numeric_filters(self.df, self.user_args["property_type"]),  
             "na_threshold": 0.5,
             "ma_lag": 0, 
             "mov_av_windows": mov_av_windows, 
