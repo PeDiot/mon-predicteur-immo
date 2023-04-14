@@ -94,15 +94,9 @@ lib/
 | [`model/`](./lib/model/) |  Régresseurs `sklearn` & `pytorch`, optimisation, évaluation résultats |
 | [`inference/`](./lib/inference/) |  Prédiction du prix de nouveaux biens |
 
-### Exemples d'utilisation 
+### Fonctionnalités
 
-- [`sk_regressors`](./training/sk_regressors.ipynb) : entrainement de modèles de régressions `sklearn` pour une zone géographique et un type de bien données
-- [`bnb_cleaning`](./cleaning/bnb_cleaning.ipynb) : pré-traitement de la base de données `bnb` avant la création de `dvf+`
-- [`streamlit_app`](streamlit_app.py) : application `streamlit` pour estimer le prix de biens immobiliers via `lib`
-
-## Résultats 
-
-### Sélection des variables
+#### Sélection des variables
 
 Le module [`dataset/`](./lib/dataset/) contient des méthodes pour identifier les features les plus intéressantes pour prédire la variable cible choisie: 
 - l'information mutuelle (MI) : mesure la dépendance entre les variables. Elle est égale à zéro si et seulement si deux variables aléatoires sont indépendantes, et des valeurs plus élevées signifient une plus grande dépendance.
@@ -128,7 +122,7 @@ important_features_mi = select_important_features(mi_values, threshold=mi_thresh
 important_features_mdg = select_important_features(mdg_values, threshold=mdg_threshold)
 ```
 
-### Optimisation des modèles
+#### Optimisation des modèles
 
 Le module [`model`](./lib/model/) contient plusieurs méthodes pour optimiser les hyperparamètres des régresseurs `sklearn` à partir d'[`optuna`](https://optuna.org/).`optuna` est un framework python permerttant de trouver les paramètres maximisant (ou minimisant) une fonction objectif. 
 
@@ -173,7 +167,7 @@ Le graphique suivant présente l'erreur absolue (%) pour chaque appartement de S
 
 ![](imgs/models/error_plot_seine-et-marne_test.png)
 
-## Sauvegarde & Chargement des modèles
+#### Sauvegarde & Chargement des modèles
 
 Pour sauvegarder un modèle que l'on vient d'entrainer, le nom des features utilisées et les métriques obtenues, on peut utiliser la fonction  [`save_model`](./lib/model/loader.py). Voici un exemple pour sauvergarder un modèle de type `XGBRegressor` ayant été entrainé sur les appartements à Paris.
 
@@ -211,7 +205,7 @@ model_loader = load_model(
     **backup_args)
 ```
 
-## Prédiction
+#### Prédiction
 
 Le module [`inference`](./lib/inference/) permet d'utiliser les modèles déjà entrainés pour prédire le prix de nouveaux biens. Les zones géographiques disponibles pour la prédiction sont renseignées dans [`enums`](./lib/enums.py). Voici un exemple d'utilisation du module `inference`: 
 
@@ -238,3 +232,9 @@ prediction.load_model(backup_dir="./backup/models/")
 pred_price = prediction.predict()
     100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 4/4 [00:00<00:00,  5.91it/s] 
 ```
+
+### Exemples d'utilisation 
+
+- [`sk_regressors`](./training/sk_regressors.ipynb) : entrainement de modèles de régressions `sklearn` pour une zone géographique et un type de bien données
+- [`bnb_cleaning`](./cleaning/bnb_cleaning.ipynb) : pré-traitement de la base de données `bnb` avant la création de `dvf+`
+- [`streamlit_app`](streamlit_app.py) : application `streamlit` pour estimer le prix de biens immobiliers via `lib`
