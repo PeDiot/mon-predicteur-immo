@@ -55,6 +55,19 @@ def generate_param_grid(trial: Trial, regressor: CustomRegressor) -> Dict:
 
     return params 
 
+def median_absolute_percentage_error(y_true: np.ndarray, y_pred: np.ndarray) -> float:
+    """Description. Compute the median absolute percentage error (MAPE) between y_true and y_pred.
+    
+    Args:
+        y_true (np.ndarray): true values
+        y_pred (np.ndarray): predicted values
+        
+    Returns:
+        float: median absolute percentage error (MAPE) between y_true and y_pred."""
+    
+    mdape = np.median(np.abs((y_true - y_pred) / y_true))
+    return mdape
+
 def optuna_objective(
     trial: Trial,
     regressor: CustomRegressor, 
@@ -62,6 +75,7 @@ def optuna_objective(
     y_tr: np.ndarray, 
     X_te: np.ndarray, 
     y_te: np.ndarray,
+    metric: str="mdape", 
     to_prices: bool = True
 ) -> float:
     """Description.
@@ -73,11 +87,22 @@ def optuna_objective(
         y_tr (np.ndarray): training target
         X_te (np.ndarray): test features
         y_te (np.ndarray): test target
+        metric (str): metric to optimize (default: "mdape")
         to_prices (bool): convert target to prices (default: True)
 
     Returns:
-        float: mean absolute percentage error between true and predicted values 
+        float: median absolute percentage error between true and predicted values 
             ('valeur_fonciere' or 'l_valeur_fonciere') depending on to_prices."""
+
+    if metric not in ["mdape", "mape"]:
+        raise ValueError(f"metric must be 'mdape' or 'mape', got {metric}.")
+
+    elif metric == "mape":
+        metric_fun = mean_absolute_percentage_error
+    
+    else: 
+        metric_fun = median_absolute_percentage_error
+
 
     params = generate_param_grid(trial, regressor)
 
@@ -90,9 +115,8 @@ def optuna_objective(
         y_te = np.exp(y_te)
         y_pred = np.exp(y_pred)
 
-    mape = mean_absolute_percentage_error(y_te, y_pred)
-
-    return mape
+    result = metric_fun(y_te, y_pred)
+    return result
 
 class OptimPruner(BasePruner):
     """Description. Stop optuna optimisation process if no improvement after n trials.

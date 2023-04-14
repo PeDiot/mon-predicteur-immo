@@ -28,6 +28,7 @@ from typing import (
 )
 
 from .estimator import CustomRegressor, MLP
+from .optimize import median_absolute_percentage_error
 
 def compute_metrics(
     model: CustomRegressor, 
@@ -48,6 +49,7 @@ def compute_metrics(
     for metric in (
         mean_absolute_error, 
         mean_absolute_percentage_error, 
+        median_absolute_percentage_error,
         mean_squared_error, 
         r2_score
     ): 
@@ -65,13 +67,15 @@ def make_regression_report(metrics: Dict, title: Optional[str]=None) -> Table:
     table = Table(title=title)
 
     table.add_column("Model", width=30)
-    for col in ("MAE", "% MAPE", "MSE", "% R²"):
+
+    for col in ("MAE", "% MAPE", "%MDAPE", "MSE", "% R²"):
         table.add_column(col, width=15)
 
     for model, records in metrics.items(): 
 
         mae = round(records["mean_absolute_error"], 2)
         mape = round(100*records["mean_absolute_percentage_error"], 2)
+        mdape = round(100*records["median_absolute_percentage_error"], 2)
         mse = round(records["mean_squared_error"], 2)
         r2 = round(100*records["r2_score"], 2)
 
@@ -79,6 +83,7 @@ def make_regression_report(metrics: Dict, title: Optional[str]=None) -> Table:
             model, 
             str(mae),
             str(mape),
+            str(mdape), 
             f"{mse:,.2e}",
             str(r2)
         )
