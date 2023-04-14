@@ -63,7 +63,9 @@ AVAILABLE_GEO_AREAS = {
         "toulouse",
         "val-d'oise",
         "val-de-marne", 
-        "essonne"
+        "essonne", 
+        "yvelines", 
+        "seine-et-marne"
     ],
     "houses": [
         "bordeaux",
@@ -75,7 +77,12 @@ AVAILABLE_GEO_AREAS = {
         "nice",
         "rennes",
         "toulouse",
+        "val-d'oise",
+        "val-de-marne", 
         "essonne", 
+        "seine-saint-denis",
+        "seine-et-marne", 
+        "yvelines"
     ]
 }
 
@@ -94,8 +101,9 @@ AVAILABLE_GEO_AREAS_COORDS = {
     "toulouse": [43.604652, 1.444209],
     "val-d'oise": [49.0138, 2.0708],
     "val-de-marne": [48.8, 2.4], 
-    "essonne": [48.485294, 2.197863]
-
+    "essonne": [48.485294, 2.197863], 
+    "yvelines": [48.794997, 1.870641], 
+    "seine-et-marne": [48.631633, 2.961794]
 }
 
 AVAILABLE_DEPARTMENTS = {
