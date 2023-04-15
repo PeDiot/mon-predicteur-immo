@@ -2,6 +2,7 @@ from lib.enums import (
     CITIES, 
     AVAILABLE_GEO_AREAS, 
     GOOGLE_API_KEY, 
+    ESTIMATORS
 ) 
 
 from lib.dataset.loader import load_dvfplus
@@ -140,9 +141,11 @@ class Prediction:
         
         Details: model contains CustomRegressor, feature names and metrics."""
 
+        estimator_name = ESTIMATORS[self.user_args["property_type"]][self.geo_area.lower()]
+
         self.model_loader = load_model(
             path=model_dir, 
-            estimator_name="XGBRegressor", 
+            estimator_name=estimator_name, 
             version=0, 
             property_type=self.user_args["property_type"],
             geo_area=self.geo_area

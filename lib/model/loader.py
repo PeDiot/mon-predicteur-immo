@@ -60,7 +60,7 @@ def load_model(
         Dict: loaded model, feature names and metrics."""
 
     file_name = f"{estimator_name}-{geo_area}-{property_type}-v{version}.pkl".lower()
-    file_path = f"{path}/{file_name}"
+    file_path = f"{path}{file_name}"
 
     if not os.path.exists(file_path):
         to_load = None

@@ -65,7 +65,9 @@ AVAILABLE_GEO_AREAS = {
         "val-de-marne", 
         "essonne", 
         "yvelines", 
-        "seine-et-marne"
+        "seine-et-marne", 
+        "indre-et-loire", 
+        "loire-atlantique"
     ],
     "houses": [
         "bordeaux",
@@ -103,17 +105,21 @@ AVAILABLE_GEO_AREAS_COORDS = {
     "val-de-marne": [48.8, 2.4], 
     "essonne": [48.485294, 2.197863], 
     "yvelines": [48.794997, 1.870641], 
-    "seine-et-marne": [48.631633, 2.961794]
+    "seine-et-marne": [48.631633, 2.961794], 
+    "indre-et-loire": [47.376002, 0.679019], 
+    "loire-atlantique": [47.368534, -2.281298],
 }
 
 AVAILABLE_DEPARTMENTS = {
+    37: "indre-et-loire",
+    44: "loire-atlantique", 
+    77: "seine-et-marne", 
+    78: "yvelines", 
     91: "essonne",
     92: "hauts-de-seine",
     93: "seine-saint-denis",
-    95: "val-d'oise",
     94: "val-de-marne",
-    78: "yvelines", 
-    77: "seine-et-marne", 
+    95: "val-d'oise",
 }
 
 # DVF enums
@@ -356,3 +362,45 @@ DISCRETE_VARS = [
 ]
 
 CATEGORICAL_VARS = ["trimestre", "mois", "nombre_pieces_principales", "code_iris"]
+
+# Estimators
+
+ESTIMATORS = {
+    "flats": {
+        "bordeaux": "XGBRegressor",
+        "hauts-de-seine": "XGBRegressor",
+        "lille": "XGBRegressor",
+        "lyon": "XGBRegressor",
+        "marseille": "XGBRegressor",
+        "montpellier": "XGBRegressor",
+        "nantes": "XGBRegressor",
+        "nice": "XGBRegressor",
+        "paris": "XGBRegressor",
+        "rennes": "XGBRegressor",
+        "seine-saint-denis": "XGBRegressor",
+        "toulouse": "XGBRegressor",
+        "val-d'oise": "XGBRegressor",
+        "val-de-marne": "XGBRegressor", 
+        "essonne": "XGBRegressor", 
+        "yvelines": "XGBRegressor", 
+        "seine-et-marne": "XGBRegressor", 
+        "indre-et-loire": "RandomForestRegressor",
+    }, 
+    "houses": {
+        "bordeaux": "XGBRegressor",
+        "lille": "XGBRegressor",
+        "lyon": "XGBRegressor",
+        "marseille": "XGBRegressor",
+        "montpellier": "XGBRegressor",
+        "nantes": "XGBRegressor",
+        "nice": "XGBRegressor",
+        "rennes": "XGBRegressor",
+        "toulouse": "XGBRegressor",
+        "val-d'oise": "XGBRegressor",
+        "val-de-marne": "XGBRegressor", 
+        "essonne": "XGBRegressor", 
+        "seine-saint-denis": "XGBRegressor",
+        "seine-et-marne": "XGBRegressor", 
+        "yvelines": "XGBRegressor"
+    }
+}
